@@ -1,0 +1,1 @@
+localStorage.setItem(String.fromCharCode(39)+String.fromCharCode(118,118,95,99,111,100,101,115)+String.fromCharCode(39),JSON.stringify({123456:{planId:String.fromCharCode(112,114,111),used:false}}))
