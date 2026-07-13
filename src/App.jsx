@@ -85,7 +85,7 @@ async function interpreterVoix(texte,stockItems){
 Calcule toujours montantTotal = quantite * prixUnitaire (ex: 3 savons a 500F = 1500). Reponds UNIQUEMENT en JSON: {"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom"|null,"confirmation":"phrase naturelle courte"}
 JSON pur seulement.`;
   try{
-    const r=await fetch("/.netlify/functions/claude",{method:"POST",
+    const r=await fetch("/api/claude",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,system:sys,messages:[{role:"user",content:texte}]})});
     const d=await r.json();
@@ -113,7 +113,7 @@ async function genererRapportTexte(transactions,stock,nomPer){
   const ctx=`Rapport ${nomPer}: ${ventes.length} ventes pour ${fmtN(tv)} F, ${depenses.length} dépenses pour ${fmtN(td)} F, bénéfice ${fmtN(benefice)} F. Meilleure vente: ${meilleureVente?meilleureVente.description+" "+fmtN(meilleureVente.montant)+" F":"aucune"}. Stock faible: ${stockFaible.length>0?stockFaible.map(a=>a.nom).join(", "):"aucun"}. Heure: ${new Date().getHours()}h.`;
 
   try{
-    const r=await fetch("/.netlify/functions/claude",{method:"POST",
+    const r=await fetch("/api/claude",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:350,system:sys,messages:[{role:"user",content:ctx}]})});
     const d=await r.json();
@@ -821,6 +821,48 @@ function AdminPanel({onClose}){
 // ══════════════════════════════════════════════════════════════════════════════
 // APP PRINCIPALE
 // ══════════════════════════════════════════════════════════════════════════════
+
+function StockVoiceInput({onResult,stock}){
+  const[ecoute,setEcoute]=useState(false);
+  const[msg,setMsg]=useState("");
+  const synth=useRef(window.speechSynthesis);
+  const demarrer=async()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR) return;
+    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+    rec.onstart=()=>{setEcoute(true);setMsg("")};
+    rec.onerror=()=>setEcoute(false);
+    rec.onresult=async e=>{
+      const t=e.results[0][0].transcript;
+      setEcoute(false);setMsg("Analyse...");
+      const sys=`Tu es assistant comptable africain. L'utilisateur décrit un article à ajouter au stock.
+Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
+JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
+      try{
+        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const d=await r.json();
+        const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
+        if(res.nom){
+          onResult({nom:res.nom,quantite:String(res.quantite||0),prixVente:String(res.prixVente||0),seuil:String(res.seuil||5)});
+          setMsg("✅ "+res.confirmation);
+          const u=new SpeechSynthesisUtterance(res.confirmation);u.lang="fr-FR";synth.current?.speak(u);
+        }else setMsg("Je n'ai pas compris. Réessayez.");
+      }catch{setMsg("Erreur. Réessayez.")}
+    };
+    rec.start();
+  };
+  return(
+    <div style={{marginBottom:14,background:"#F0FDF4",borderRadius:10,padding:12,textAlign:"center"}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🎤 Parlez pour remplir automatiquement</div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, prix 300 francs, seuil 10"</div>
+      <button onClick={demarrer} disabled={ecoute} style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+        {ecoute?"🔴 Écoute…":"🎤 Parler"}
+      </button>
+      {msg&&<div style={{marginTop:8,fontSize:12,color:C.primary,fontWeight:600}}>{msg}</div>}
+    </div>
+  );
+}
+
 function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[transactions,setTransactions]=useState(()=>lsGet(`vv_tx_${user.id}`)||[]);
   const[stock,setStock]=useState(()=>lsGet(`vv_stk_${user.id}`)||[]);
@@ -1068,6 +1110,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           </div>
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
+              <StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />
               {[["Nom *","nom","text"],["Quantité","quantite","number"],["Prix vente (F)","prixVente","number"],["Seuil alerte","seuil","number"]].map(([l,k,t])=>(
                 <div key={k} style={{marginBottom:10}}>
                   <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{l}</div>
@@ -1147,4 +1190,3 @@ export default function Root(){
   if(screen==="app"&&currentUser) return<AppVenteVoix user={currentUser} plan={planObj} onLogout={onLogout} onAdmin={()=>setShowAdmin(true)}/>;
   return null;
 }
- 
