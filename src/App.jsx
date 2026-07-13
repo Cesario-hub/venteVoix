@@ -1147,3 +1147,4 @@ export default function Root(){
   if(screen==="app"&&currentUser) return<AppVenteVoix user={currentUser} plan={planObj} onLogout={onLogout} onAdmin={()=>setShowAdmin(true)}/>;
   return null;
 }
+ 
