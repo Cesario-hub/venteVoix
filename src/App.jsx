@@ -85,7 +85,7 @@ async function interpreterVoix(texte,stockItems){
 Calcule toujours montantTotal = quantite * prixUnitaire (ex: 3 savons a 500F = 1500). Reponds UNIQUEMENT en JSON: {"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom"|null,"confirmation":"phrase naturelle courte"}
 JSON pur seulement.`;
   try{
-    const r=await fetch("/api/claude",{method:"POST",
+    const r=await fetch("/.netlify/functions/claude",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,system:sys,messages:[{role:"user",content:texte}]})});
     const d=await r.json();
@@ -113,7 +113,7 @@ async function genererRapportTexte(transactions,stock,nomPer){
   const ctx=`Rapport ${nomPer}: ${ventes.length} ventes pour ${fmtN(tv)} F, ${depenses.length} dépenses pour ${fmtN(td)} F, bénéfice ${fmtN(benefice)} F. Meilleure vente: ${meilleureVente?meilleureVente.description+" "+fmtN(meilleureVente.montant)+" F":"aucune"}. Stock faible: ${stockFaible.length>0?stockFaible.map(a=>a.nom).join(", "):"aucun"}. Heure: ${new Date().getHours()}h.`;
 
   try{
-    const r=await fetch("/api/claude",{method:"POST",
+    const r=await fetch("/.netlify/functions/claude",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:350,system:sys,messages:[{role:"user",content:ctx}]})});
     const d=await r.json();
