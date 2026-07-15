@@ -863,6 +863,51 @@ JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mention
   );
 }
 
+
+function SaisieManuelle({onValider,onClose}){
+  const[form,setForm]=useState({type:"vente",description:"",quantite:"",prixUnitaire:"",montant:""});
+  const set=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+  const calcMontant=()=>{
+    const q=parseFloat(form.quantite)||0;
+    const p=parseFloat(form.prixUnitaire)||0;
+    if(q&&p) setForm(prev=>({...prev,montant:String(q*p)}));
+  };
+  const valider=()=>{
+    if(!form.description.trim()) return;
+    const montant=parseFloat(form.montant)||parseFloat(form.prixUnitaire)||0;
+    onValider({
+      type:form.type,
+      description:form.description,
+      quantite:form.quantite?parseFloat(form.quantite):null,
+      prixUnitaire:form.prixUnitaire?parseFloat(form.prixUnitaire):null,
+      montantTotal:montant,
+      articleStock:null,
+      confirmation:`${form.type==="vente"?"Vente":"Dépense"} de ${form.description} pour ${new Intl.NumberFormat("fr-FR").format(montant)} francs.`
+    });
+  };
+  return(
+    <div style={{background:"#F0FDF4",border:`1.5px solid ${C.primaryLight}`,borderRadius:14,padding:16,marginBottom:14}}>
+      <div style={{fontWeight:700,fontSize:13,color:C.primary,marginBottom:12}}>✏️ Saisie manuelle</div>
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        {[["vente","🟢 Vente"],["depense","🔴 Dépense"],["stock_entree","📦 Stock"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setForm(p=>({...p,type:v}))} style={{flex:1,padding:"8px 4px",borderRadius:8,border:`2px solid ${form.type===v?C.primary:C.border}`,background:form.type===v?C.primary:"transparent",color:form.type===v?"#FFF":C.muted,fontWeight:700,fontSize:11,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+      {[["Description *","description","text","ex: Savons bleus"],["Quantité","quantite","number","ex: 5"],["Prix unitaire (F)","prixUnitaire","number","ex: 300"],["Montant total (F) *","montant","number","ex: 1500"]].map(([l,k,t,ph])=>(
+        <div key={k} style={{marginBottom:10}}>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
+          <input type={t} placeholder={ph} value={form[k]} onChange={set(k)} onBlur={k==="prixUnitaire"||k==="quantite"?calcMontant:undefined}
+            style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+        </div>
+      ))}
+      <div style={{display:"flex",gap:8,marginTop:4}}>
+        <button onClick={onClose} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
+        <button onClick={valider} style={btnS(C.primary,"#FFF")}>✓ Valider</button>
+      </div>
+    </div>
+  );
+}
+
 function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[transactions,setTransactions]=useState(()=>lsGet(`vv_tx_${user.id}`)||[]);
   const[stock,setStock]=useState(()=>lsGet(`vv_stk_${user.id}`)||[]);
@@ -874,6 +919,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[showStockForm,setShowStockForm]=useState(false);
   const[newArt,setNewArt]=useState({nom:"",quantite:"",prixVente:"",seuil:"5"});
   const[showRapport,setShowRapport]=useState(false);
+  const[showManuel,setShowManuel]=useState(false);
   const[showParams,setShowParams]=useState(false);
   const recognRef=useRef(null);
   const synth=useRef(window.speechSynthesis);
@@ -1033,6 +1079,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           <button onClick={()=>setShowRapport(true)} style={{width:"100%",padding:"12px",borderRadius:12,border:`1.5px solid ${C.primary}`,background:"transparent",color:C.primary,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
             🎙️ Rapport audio — Bilan & WhatsApp
           </button>
+          {showManuel&&<SaisieManuelle onValider={res=>{setInterpretation(res);setTranscription(res.description);setEtat("confirmation");setShowManuel(false)}} onClose={()=>setShowManuel(false)}/>}
           <div style={{background:C.surface,borderRadius:18,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.08)",textAlign:"center"}}>
             {etat==="idle"&&<>
               <div style={{fontSize:13,color:C.muted,marginBottom:14}}>Parlez pour enregistrer une vente, dépense ou entrée de stock</div>
@@ -1044,6 +1091,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
               </div>
               <button onClick={demarrer} style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.mic},#FF8E53)`,border:"none",cursor:"pointer",fontSize:32,boxShadow:"0 6px 20px rgba(220,38,38,.4)"}}>🎤</button>
               <div style={{marginTop:10,fontSize:11,color:C.muted}}>Appuyez pour parler</div>
+              <button onClick={()=>setShowManuel(true)} style={{marginTop:14,background:"transparent",border:`1px solid ${C.border}`,borderRadius:20,padding:"6px 16px",color:C.muted,fontSize:11,cursor:"pointer"}}>✏️ Saisie manuelle</button>
             </>}
             {etat==="ecoute"&&<>
               <div style={{fontSize:14,fontWeight:700,color:C.mic,marginBottom:14}}>🔴 Je vous écoute…</div>
