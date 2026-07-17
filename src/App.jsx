@@ -107,6 +107,10 @@ JSON pur seulement, sans backticks.`;
 // ══════════════════════════════════════════════════════════════════════════════
 function fmtN(n){ return new Intl.NumberFormat("fr-FR").format(n); }
 
+function nettoyerPourVoix(texte){
+  return texte.replace(/[*_~`#\[\]📊📈📦💸💰🎙🔊📲🛒🌙⏰⚠✅❌🔐🎤🎉🇨🇮🇸🇳🇨🇲]/g,'').replace(/\s+/g,' ').trim();
+}
+
 async function genererRapportTexte(transactions,stock,nomPer){
   const ventes=transactions.filter(t=>t.type==="vente");
   const depenses=transactions.filter(t=>t.type==="depense");
@@ -257,7 +261,7 @@ function LecteurAudio(){
 
   const relire=()=>{
     synth.current?.cancel();
-    const u=new SpeechSynthesisUtterance(texte);
+    const u=new SpeechSynthesisUtterance(nettoyerPourVoix(texte));
     u.lang="fr-FR"; u.rate=0.9;
     u.onstart=()=>setLecture(true);
     u.onend=()=>setLecture(false);
@@ -325,7 +329,7 @@ function EcranRapport({transactions,stock,onClose}){
 
   const lireAVoix=()=>{
     synth.current?.cancel();
-    const u=new SpeechSynthesisUtterance(rapport);
+    const u=new SpeechSynthesisUtterance(nettoyerPourVoix(rapport));
     u.lang="fr-FR"; u.rate=0.9;
     u.onstart=()=>setLecture(true);
     u.onend=()=>setLecture(false);
@@ -417,7 +421,7 @@ function EcranRapport({transactions,stock,onClose}){
               setRapport(texte); setLienAudio(lien);
               setLoading(false);
               setTimeout(()=>{
-                const u=new SpeechSynthesisUtterance(texte);
+                const u=new SpeechSynthesisUtterance(nettoyerPourVoix(texte));
                 u.lang="fr-FR"; u.rate=0.9;
                 u.onstart=()=>setLecture(true);
                 u.onend=()=>setLecture(false);
@@ -968,7 +972,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         if("Notification" in window&&Notification.permission==="granted"){
           new Notification("🛒 VenteVoix — Bilan du jour",{body:texte.slice(0,80)+"…"});
         }
-        const u=new SpeechSynthesisUtterance(texte);
+        const u=new SpeechSynthesisUtterance(nettoyerPourVoix(texte));
         u.lang="fr-FR"; u.rate=0.9;
         u.onend=()=>{
           const tv=txJ.filter(t=>t.type==="vente").reduce((s,t)=>s+t.montant,0);
