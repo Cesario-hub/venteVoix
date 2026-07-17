@@ -646,7 +646,7 @@ function PaymentPage({planId,onHaveCode,onBack}){
 // ══════════════════════════════════════════════════════════════════════════════
 function AuthPage({mode,onAuth,onBack,onNeedPayment}){
   const[tab,setTab]=useState(mode);
-  const[form,setForm]=useState({nom:"",tel:"",pin:"",pin2:"",code:""});
+  const[form,setForm]=useState({nom:"",tel:"",email:"",pin:"",pin2:"",code:""});
   const[err,setErr]=useState("");
   const[loading,setLoading]=useState(false);
 
@@ -663,7 +663,7 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
       if(users[form.tel]){setErr("Ce numéro est déjà inscrit.");setLoading(false);return;}
       const result=useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
       if(!result.ok){setErr(result.error);setLoading(false);return;}
-      const user={id:Date.now(),nom:form.nom,tel:form.tel,plan:result.planId,subscribed:true,createdAt:new Date().toISOString()};
+      const user={id:Date.now(),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString()};
       users[form.tel]=user;
       lsSet("vv_users",users);
       const pins=lsGet("vv_pins")||{};
@@ -698,7 +698,8 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
         {[
           tab==="signup"?["Nom complet *","nom","text","Jean Kouamé"]:null,
           ["Numéro téléphone *","tel","tel","+225 07 00 00 00"],
-          tab==="signup"?["Code d'activation *","code","text","ex: TEST01"]:null,
+          tab==="signup"?["Email (optionnel)","email","email","exemple@gmail.com"]:null,
+          tab==="signup"?["Code d'activation *","code","text","Code reçu par WhatsApp"]:null,
           ["Code PIN (4+ chiffres) *","pin","password","••••"],
           tab==="signup"?["Confirmer PIN *","pin2","password","••••"]:null,
         ].filter(Boolean).map(([lbl,key,type,ph])=>(
