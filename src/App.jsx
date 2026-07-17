@@ -357,10 +357,16 @@ function EcranRapport({transactions,stock,onClose}){
             </div>
           )}
           {/* Stats rapides */}
-          <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
             <StatCard label="Ventes" value={fmt(tv)} color={C.primary} sub={`${stats.nv} op.`}/>
             <StatCard label="Dépenses" value={fmt(td)} color={C.danger} sub={`${stats.nd} op.`}/>
-            <StatCard label="Bénéfice" value={fmt(tv-td)} color={(tv-td)>=0?C.primary:C.danger}/>
+          </div>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <StatCard label="Coût marchandises" value={fmt(cmv)} color="#7C3AED" sub="CMV"/>
+            <StatCard label="Bénéfice réel" value={fmt(tv-td-cmv)} color={(tv-td-cmv)>=0?C.primary:C.danger}/>
+          </div>
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            <StatCard label="Valeur du stock" value={fmt(valeurStock)} color={C.accent} sub={`${stock.length} articles`}/>
           </div>
           <button onClick={generer} disabled={loading} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:loading?"#9CA3AF":C.primaryMid,color:"#FFF",fontWeight:700,fontSize:14,cursor:loading?"not-allowed":"pointer",marginBottom:12}}>
             {loading?"⏳ Génération par Claude…":"🤖 Générer le rapport audio"}
@@ -839,7 +845,7 @@ function StockVoiceInput({onResult,stock}){
 Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
 JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
       try{
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
@@ -917,7 +923,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[erreur,setErreur]=useState("");
   const[onglet,setOnglet]=useState("accueil");
   const[showStockForm,setShowStockForm]=useState(false);
-  const[newArt,setNewArt]=useState({nom:"",quantite:"",prixVente:"",seuil:"5"});
+  const[newArt,setNewArt]=useState({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
   const[showRapport,setShowRapport]=useState(false);
   const[showManuel,setShowManuel]=useState(false);
   const[showParams,setShowParams]=useState(false);
@@ -1017,6 +1023,14 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   },[parler]);
 
   const tv=transactions.filter(t=>t.type==="vente").reduce((s,t)=>s+t.montant,0);
+  // Calcul CMV: coût d'achat des articles vendus
+  const cmv=transactions.filter(t=>t.type==="vente").reduce((s,t)=>{
+    if(!t.articleStock) return s;
+    const art=stock.find(a=>a.nom.toLowerCase()===t.articleStock?.toLowerCase());
+    if(!art||!art.prixAchat) return s;
+    return s+(art.prixAchat*(t.quantite??1));
+  },0);
+  const valeurStock=stock.reduce((s,a)=>s+(a.quantite??0)*(a.prixAchat??0),0);
   const td=transactions.filter(t=>t.type==="depense").reduce((s,t)=>s+t.montant,0);
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
@@ -1025,9 +1039,9 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
   const ajouterArt=()=>{
     if(!newArt.nom.trim()) return;
-    const a={id:Date.now(),nom:newArt.nom.trim(),quantite:parseInt(newArt.quantite)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
+    const a={id:Date.now(),nom:newArt.nom.trim(),quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
     const ns=[...stock,a]; setStock(ns); saveStk(ns);
-    setNewArt({nom:"",quantite:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
+    setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
   };
   const suppTx=id=>{ const nl=transactions.filter(t=>t.id!==id); setTransactions(nl); saveTx(nl); };
   const suppArt=id=>{ const ns=stock.filter(a=>a.id!==id); setStock(ns); saveStk(ns); };
@@ -1159,7 +1173,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />
-              {[["Nom *","nom","text"],["Quantité","quantite","number"],["Prix vente (F)","prixVente","number"],["Seuil alerte","seuil","number"]].map(([l,k,t])=>(
+              {[["Nom *","nom","text"],["Quantité","quantite","number"],["Prix achat (F)","prixAchat","number"],["Prix vente (F)","prixVente","number"],["Seuil alerte","seuil","number"]].map(([l,k,t])=>(
                 <div key={k} style={{marginBottom:10}}>
                   <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{l}</div>
                   <input type={t} value={newArt[k]} onChange={e=>setNewArt(p=>({...p,[k]:e.target.value}))} style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:14,boxSizing:"border-box",outline:"none"}}/>
@@ -1179,7 +1193,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{art.nom}</div>
-                    <div style={{fontSize:12,color:C.muted}}>Prix : {fmt(art.prixVente??0)} · Valeur : {fmt((art.quantite??0)*(art.prixVente??0))}</div>
+                    <div style={{fontSize:12,color:C.muted}}>Achat : {fmt(art.prixAchat??0)} · Vente : {fmt(art.prixVente??0)}</div>
+                  <div style={{fontSize:12,color:C.muted}}>Marge : {fmt((art.prixVente??0)-(art.prixAchat??0))} · Valeur stock : {fmt((art.quantite??0)*(art.prixAchat??0))}</div>
                     {f&&<div style={{fontSize:11,color:C.accent,fontWeight:700,marginTop:3}}>⚠️ Faible (seuil : {art.seuil})</div>}
                   </div>
                   <div style={{textAlign:"right"}}>
@@ -1196,7 +1211,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           })}
           {stock.length>0&&<div style={{background:C.surface,borderRadius:12,padding:14,marginTop:8}}>
             <div style={{fontWeight:700,marginBottom:6,color:C.primary}}>Valeur totale du stock</div>
-            <div style={{fontSize:22,fontWeight:800,color:C.primary}}>{fmt(stock.reduce((s,a)=>s+(a.quantite??0)*(a.prixVente??0),0))}</div>
+            <div style={{fontSize:22,fontWeight:800,color:C.primary}}>{fmt(stock.reduce((s,a)=>s+(a.quantite??0)*(a.prixAchat??0),0))}</div>
           </div>}
         </>}
       </div>
