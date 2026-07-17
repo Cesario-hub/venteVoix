@@ -1008,6 +1008,23 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
   const valider=useCallback(()=>{
     if(!interpretation||interpretation.type==="inconnu"){annuler();return;}
+    
+    // Verification stock insuffisant
+    if(interpretation.type==="vente"&&interpretation.articleStock){
+      const artNom=interpretation.articleStock.toLowerCase();
+      const artStock=stock.find(s=>s.nom.toLowerCase()===artNom);
+      if(artStock){
+        const qteVendue=interpretation.quantite??1;
+        const qteDispo=artStock.quantite??0;
+        if(qteVendue>qteDispo){
+          parler("Stock insuffisant. Vous avez seulement "+qteDispo+" "+artStock.nom+" disponibles.");
+          setEtat("erreur");
+          setErreur("Stock insuffisant : "+qteDispo+" "+artStock.nom+" disponibles, vous essayez d'en vendre "+qteVendue+".");
+          return;
+        }
+      }
+    }
+
     const tx={
       id:Date.now(), date:new Date().toISOString(),
       type:interpretation.type, description:interpretation.description??"—",
