@@ -939,6 +939,9 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[showStockForm,setShowStockForm]=useState(false);
   const[newArt,setNewArt]=useState({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
   const[showRapport,setShowRapport]=useState(false);
+  const[stockWarning,setStockWarning]=useState(null);
+  const[showMouvements,setShowMouvements]=useState(false);
+  const[ongletStock,setOngletStock]=useState('articles');
   const[showManuel,setShowManuel]=useState(false);
   const[showParams,setShowParams]=useState(false);
   const recognRef=useRef(null);
@@ -1010,20 +1013,20 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     if(!interpretation||interpretation.type==="inconnu"){annuler();return;}
     
     // Verification stock insuffisant
-    if(interpretation.type==="vente"&&interpretation.articleStock){
+    if(interpretation.type==="vente"&&interpretation.articleStock&&!stockWarning){
       const artNom=interpretation.articleStock.toLowerCase();
       const artStock=stock.find(s=>s.nom.toLowerCase()===artNom);
       if(artStock){
         const qteVendue=interpretation.quantite??1;
         const qteDispo=artStock.quantite??0;
         if(qteVendue>qteDispo){
-          parler("Stock insuffisant. Vous avez seulement "+qteDispo+" "+artStock.nom+" disponibles.");
-          setEtat("erreur");
-          setErreur("Stock insuffisant : "+qteDispo+" "+artStock.nom+" disponibles, vous essayez d'en vendre "+qteVendue+".");
+          setStockWarning({artNom:artStock.nom,qteDispo,qteVendue});
+          parler("Stock insuffisant. Vous avez seulement "+qteDispo+" "+artStock.nom+". Voulez-vous quand même vendre ?");
           return;
         }
       }
     }
+    setStockWarning(null);
 
     const tx={
       id:Date.now(), date:new Date().toISOString(),
@@ -1043,6 +1046,11 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         return s;
       });
       setStock(ns); saveStk(ns);
+      // Mouvement de stock
+      const mvt={id:Date.now(),date:new Date().toISOString(),article:interpretation.articleStock,type:interpretation.type==="vente"?"sortie":"entree",quantite:interpretation.quantite??1,description:interpretation.description??""};
+      const KEY_MVT="vv_mvt_"+user.id;
+      const mvts=lsGet(KEY_MVT)||[];
+      lsSet(KEY_MVT,[mvt,...mvts]);
     }
     setEtat("idle"); setInterpretation(null); setTranscription("");
     parler("Enregistré !");
@@ -1157,9 +1165,14 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 <Row l="Montant total" v={fmt(interpretation.montantTotal??0)} bold/>
               </div>
               <div style={{fontSize:13,fontWeight:600,marginBottom:14}}>🔊 {interpretation.confirmation}</div>
+              {stockWarning&&(
+                <div style={{background:"#FEF3C7",border:"1px solid #F59E0B",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,color:"#92400E"}}>
+                  Attention : seulement {stockWarning.qteDispo} {stockWarning.artNom} en stock, vous vendez {stockWarning.qteVendue}. Voulez-vous quand meme continuer ?
+                </div>
+              )}
               <div style={{display:"flex",gap:10}}>
                 <button onClick={annuler} style={btnS(C.danger,"#FFF")}>✗ Annuler</button>
-                <button onClick={valider} style={btnS(C.primary,"#FFF")}>✓ Confirmer</button>
+                <button onClick={valider} style={btnS(C.primary,"#FFF")}>{stockWarning?"✓ Vendre quand même":"✓ Confirmer"}</button>
               </div>
             </>}
             {etat==="erreur"&&<>
@@ -1197,10 +1210,15 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
         {/* STOCK */}
         {onglet==="stock"&&canStock&&<>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{fontWeight:700,fontSize:15}}>Stock ({stock.length})</div>
             <button onClick={()=>setShowStockForm(!showStockForm)} style={{background:C.primary,border:"none",borderRadius:10,padding:"7px 14px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Ajouter</button>
           </div>
+          <div style={{display:"flex",gap:6,marginBottom:12}}>
+            <button onClick={()=>setOngletStock("articles")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="articles"?C.primary:C.border}`,background:ongletStock==="articles"?C.primary:"transparent",color:ongletStock==="articles"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📦 Articles</button>
+            <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
+          </div>
+          {ongletStock==="articles"&&<>
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />
@@ -1244,6 +1262,32 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             <div style={{fontWeight:700,marginBottom:6,color:C.primary}}>Valeur totale du stock</div>
             <div style={{fontSize:22,fontWeight:800,color:C.primary}}>{fmt(stock.reduce((s,a)=>s+(a.quantite??0)*(a.prixAchat??0),0))}</div>
           </div>}
+          </>}
+          {ongletStock==="mouvements"&&(()=>{
+            const mvts=lsGet("vv_mvt_"+user.id)||[];
+            return mvts.length===0?(
+              <div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📊</div>Aucun mouvement de stock.</div>
+            ):(
+              <div>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:10,color:C.primary}}>Mouvements de stock ({mvts.length})</div>
+                {mvts.map(m=>(
+                  <div key={m.id} style={{background:C.surface,borderRadius:12,padding:"11px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${m.type==="entree"?C.primaryLight:C.danger}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{m.article}</div>
+                        <div style={{fontSize:11,color:C.muted}}>{m.description}</div>
+                        <div style={{fontSize:10,color:C.muted}}>{new Date(m.date).toLocaleString("fr-FR")}</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontWeight:800,fontSize:15,color:m.type==="entree"?C.primary:C.danger}}>{m.type==="entree"?"+":"-"}{m.quantite} unités</div>
+                        <div style={{fontSize:10,color:C.muted,background:m.type==="entree"?"#D1FAE5":"#FEE2E2",borderRadius:20,padding:"2px 8px",marginTop:3}}>{m.type==="entree"?"ENTRÉE":"SORTIE"}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </>}
       </div>
       <style>{`input:focus{border-color:#1B4332!important;box-shadow:0 0 0 3px rgba(27,67,50,.12);}button:active{opacity:.85;transform:scale(.97);}`}</style>
