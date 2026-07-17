@@ -303,6 +303,8 @@ function EcranRapport({transactions,stock,onClose}){
   const depenses=tx.filter(t=>t.type==="depense");
   const tv=ventes.reduce((s,t)=>s+t.montant,0);
   const td=depenses.reduce((s,t)=>s+t.montant,0);
+  const cmv=ventes.reduce((s,t)=>{if(!t.articleStock)return s;const art=stock.find(a=>a.nom.toLowerCase()===t.articleStock?.toLowerCase());if(!art||!art.prixAchat)return s;return s+(art.prixAchat*(t.quantite??1));},0);
+  const valeurStock=stock.reduce((s,a)=>s+(a.quantite??0)*(a.prixAchat??0),0);
   const stats={tv,td,nv:ventes.length,nd:depenses.length};
   const np=nomPeriode(periode);
 
