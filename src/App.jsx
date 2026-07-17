@@ -81,9 +81,16 @@ function useActivationCode(code,userInfo){
 // CLAUDE API — interprétation vocale
 // ══════════════════════════════════════════════════════════════════════════════
 async function interpreterVoix(texte,stockItems){
-  const sys=`Tu es assistant comptable secteur informel africain. Articles stock: ${stockItems.map(s=>s.nom).join(",")||"aucun"}.
-Calcule toujours montantTotal = quantite * prixUnitaire (ex: 3 savons a 500F = 1500). Reponds UNIQUEMENT en JSON: {"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom"|null,"confirmation":"phrase naturelle courte"}
-JSON pur seulement.`;
+  const articlesStock=stockItems.map(s=>s.nom).join(", ")||"aucun";
+  const sys=`Tu es assistant comptable secteur informel africain.
+Articles en stock disponibles: ${articlesStock}
+
+RÈGLES IMPORTANTES:
+1. Calcule TOUJOURS montantTotal = quantite * prixUnitaire (ex: 3 savons a 500F = montantTotal=1500)
+2. Pour articleStock: cherche la correspondance APPROXIMATIVE avec les articles en stock. Ex: "savon" correspond a "Savon bleu", "pagne" correspond a "Pagne wax". Si aucune correspondance, mets null.
+3. Reponds UNIQUEMENT en JSON valide:
+{"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom exact du stock"|null,"confirmation":"phrase courte naturelle"}
+JSON pur seulement, sans backticks.`;
   try{
     const r=await fetch("/api/claude",{method:"POST",
       headers:{"Content-Type":"application/json"},
