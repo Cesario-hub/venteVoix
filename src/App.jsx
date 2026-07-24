@@ -871,7 +871,7 @@ function StockVoiceInput({onResult,stock}){
 Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
 JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
       try{
-        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
