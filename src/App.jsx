@@ -832,16 +832,29 @@ function AdminPanel({onClose}){
         )}
         {used.length>0&&(
           <div style={{background:C.surface,borderRadius:14,padding:14,boxShadow:"0 2px 8px rgba(0,0,0,.07)"}}>
-            <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:C.muted}}>⚫ Utilisés ({used.length})</div>
-            {used.map(([code,info])=>(
-              <div key={code} style={{padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <span style={{fontWeight:700,fontSize:13,letterSpacing:2,color:C.muted,textDecoration:"line-through"}}>{code}</span>
-                  <span style={{fontSize:10,color:C.primaryLight,fontWeight:600}}>{PLANS.find(p=>p.id===info.planId)?.name}</span>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:10,color:C.primary}}>👥 Historique clients ({used.length})</div>
+            {used.map(([code,info])=>{
+              const expireAt=info.expireAt?new Date(info.expireAt):null;
+              const expire=expireAt&&expireAt<new Date();
+              const jours=expireAt&&!expire?Math.ceil((expireAt-new Date())/(1000*60*60*24)):null;
+              return(
+                <div key={code} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.primary}}>{info.usedBy?.nom||"Client inconnu"}</div>
+                      <div style={{fontSize:11,color:C.muted}}>{info.usedBy?.tel||""}{info.usedBy?.email?` · ${info.usedBy.email}`:""}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:2}}>Code: <b>{code}</b> · {PLANS.find(p=>p.id===info.planId)?.name} {info.note?`· ${info.note}`:""}</div>
+                      <div style={{fontSize:10,color:C.muted}}>Activé: {info.usedAt?new Date(info.usedAt).toLocaleDateString("fr-FR"):"?"}{expireAt?` · Exp: ${expireAt.toLocaleDateString("fr-FR")}`:""}</div>
+                    </div>
+                    <div style={{marginLeft:8}}>
+                      {!expireAt&&<span style={{background:"#D1FAE5",color:C.primary,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>✅ Actif</span>}
+                      {expireAt&&expire&&<span style={{background:"#FEE2E2",color:"#B91C1C",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>⚠️ Expiré</span>}
+                      {expireAt&&!expire&&<span style={{background:"#FEF3C7",color:"#92400E",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>⏳ {jours}j</span>}
+                    </div>
+                  </div>
                 </div>
-                <div style={{fontSize:10,color:C.muted}}>{info.usedBy?.nom||"?"} · {info.usedAt?new Date(info.usedAt).toLocaleDateString("fr-FR"):""}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -871,7 +884,7 @@ function StockVoiceInput({onResult,stock}){
 Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
 JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
       try{
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
