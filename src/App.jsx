@@ -56,10 +56,11 @@ function generateCode(){ return Math.floor(100000+Math.random()*900000).toString
 function getCodes(){ return lsGet("vv_codes")||{}; }
 function saveCodes(c){ lsSet("vv_codes",c); }
 
-function createCode(planId,note=""){
+function createCode(planId,note="",trialDays=0){
   const codes=getCodes();
   const code=generateCode();
-  codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null};
+  const expireAt=trialDays>0?new Date(Date.now()+trialDays*24*60*60*1000).toISOString():null;
+  codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null,trialDays,expireAt};
   saveCodes(codes);
   return code;
 }
@@ -667,7 +668,9 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
       if(users[form.tel]){setErr("Ce numéro est déjà inscrit.");setLoading(false);return;}
       const result=useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
       if(!result.ok){setErr(result.error);setLoading(false);return;}
-      const user={id:Date.now(),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString()};
+      const codeInfo=(getCodes()[form.code.trim()])||{};
+      const trialEnd=codeInfo.expireAt||null;
+      const user={id:Date.now(),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString(),trialEnd,isTrial:!!trialEnd};
       users[form.tel]=user;
       lsSet("vv_users",users);
       const pins=lsGet("vv_pins")||{};
@@ -735,6 +738,7 @@ function AdminPanel({onClose}){
   const[note,setNote]=useState("");
   const[newCode,setNewCode]=useState(null);
   const[copied,setCopied]=useState(null);
+  const[trialDays,setTrialDays]=useState(0);
   const config=getConfig();
 
   const login=()=>{
@@ -742,7 +746,7 @@ function AdminPanel({onClose}){
     else alert("PIN incorrect");
   };
   const generate=()=>{
-    const c=createCode(plan,note);
+    const c=createCode(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
@@ -782,12 +786,20 @@ function AdminPanel({onClose}){
           </div>
           <input type="text" placeholder="Note (nom client)" value={note} onChange={e=>setNote(e.target.value)}
             style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",marginBottom:10}}/>
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:12,color:C.muted,marginBottom:5,fontWeight:600}}>Durée d'accès</div>
+            <div style={{display:"flex",gap:6}}>
+              {[[0,"Permanent"],[7,"7 jours"],[14,"14 jours"],[30,"30 jours"]].map(([d,l])=>(
+                <button key={d} onClick={()=>setTrialDays(d)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:`2px solid ${trialDays===d?C.accent:C.border}`,background:trialDays===d?C.accent+"30":"transparent",color:trialDays===d?C.accent:C.muted,fontWeight:trialDays===d?700:400,fontSize:10,cursor:"pointer"}}>{l}</button>
+              ))}
+            </div>
+          </div>
           <button onClick={generate} style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:C.primary,color:"#FFF",fontWeight:700,fontSize:14,cursor:"pointer"}}>🎲 Générer</button>
           {newCode&&(
             <div style={{marginTop:12,background:"#D1FAE5",border:`2px solid ${C.primary}`,borderRadius:12,padding:14,textAlign:"center"}}>
               <div style={{fontSize:11,color:C.primary,marginBottom:4}}>✅ Code généré</div>
               <div style={{fontSize:34,fontWeight:900,color:C.primary,letterSpacing:4,marginBottom:8}}>{newCode}</div>
-              <div style={{fontSize:11,color:C.muted,marginBottom:10}}>{PLANS.find(p=>p.id===plan)?.name}</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:10}}>{PLANS.find(p=>p.id===plan)?.name} · {trialDays>0?`Essai ${trialDays} jours`:"Accès permanent"}</div>
               <button onClick={()=>copyMsg(newCode)} style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:copied===newCode?"#10B981":C.primary,color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 {copied===newCode?"✅ Copié ! Collez dans WhatsApp":"📋 Copier le message WhatsApp"}
               </button>
@@ -809,7 +821,7 @@ function AdminPanel({onClose}){
               <div key={code} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:`1px solid ${C.border}`}}>
                 <div>
                   <div style={{fontWeight:800,fontSize:16,letterSpacing:2,color:C.primary}}>{code}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{PLANS.find(p=>p.id===info.planId)?.name} · {info.note||"Sans note"}</div>
+                  <div style={{fontSize:10,color:C.muted}}>{PLANS.find(p=>p.id===info.planId)?.name} · {info.note||"Sans note"} · {info.trialDays>0?`⏳ ${info.trialDays}j`:"♾️ Permanent"}</div>
                 </div>
                 <button onClick={()=>copyMsg(code)} style={{background:copied===code?"#10B981":C.primaryMid,border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",fontSize:11,cursor:"pointer",fontWeight:600}}>
                   {copied===code?"✅":"📋 Copier"}
@@ -1074,6 +1086,9 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
+  const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
+  const trialExpired=trialEnd&&trialEnd<new Date();
+  const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
   const config=getConfig();
 
   const ajouterArt=()=>{
@@ -1109,6 +1124,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         </div>
         {articlesBas.length>0&&canStock&&<div style={{marginTop:6,background:"rgba(212,160,23,.2)",borderRadius:8,padding:"4px 12px",fontSize:11,color:C.accentLight,fontWeight:600}}>⚠️ Stock faible : {articlesBas.map(a=>a.nom).join(", ")}</div>}
         {config.RAPPORT_ACTIF&&<div style={{marginTop:4,fontSize:10,color:"rgba(255,255,255,.4)",textAlign:"right"}}>⏰ Rapport auto à {String(config.RAPPORT_HEURE).padStart(2,"0")}h{String(config.RAPPORT_MINUTE).padStart(2,"0")}</div>}
+        {trialExpired&&<div style={{marginTop:6,background:"#B91C1C",borderRadius:8,padding:"6px 12px",fontSize:11,color:"#FFF",fontWeight:700,textAlign:"center"}}>⚠️ Votre essai gratuit a expiré. Contactez-nous pour continuer !</div>}
+        {trialDaysLeft!==null&&trialDaysLeft<=3&&!trialExpired&&<div style={{marginTop:6,background:"rgba(212,160,23,.3)",borderRadius:8,padding:"6px 12px",fontSize:11,color:C.accentLight,fontWeight:700,textAlign:"center"}}>⏳ Essai gratuit : {trialDaysLeft} jour{trialDaysLeft>1?"s":""} restant{trialDaysLeft>1?"s":""}</div>}
       </div>
 
       {/* Onglets */}
