@@ -243,34 +243,6 @@ function Input({label,k,type="text",placeholder,value,onChange}){return<div styl
 // ══════════════════════════════════════════════════════════════════════════════
 // LECTEUR AUDIO — s'active si ?audio= dans l'URL
 // ══════════════════════════════════════════════════════════════════════════════
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT MICRO UNIVERSEL - Appui simple ou appui long
-// ══════════════════════════════════════════════════════════════════════════════
-function MicButton({onStart,onStop,label="🎤",style={},disabled=false}){
-  const holdRef=useRef(null);
-  const handleDown=()=>{
-    if(disabled) return;
-    holdRef.current=setTimeout(()=>{holdRef.current="hold"},300);
-    onStart();
-  };
-  const handleUp=()=>{
-    if(holdRef.current==="hold") onStop();
-    clearTimeout(holdRef.current);
-    holdRef.current=null;
-  };
-  return(
-    <button
-      onMouseDown={handleDown} onMouseUp={handleUp}
-      onTouchStart={e=>{e.preventDefault();handleDown();}}
-      onTouchEnd={e=>{e.preventDefault();handleUp();}}
-      disabled={disabled}
-      style={{userSelect:"none",WebkitUserSelect:"none",touchAction:"none",...style}}>
-      {label}
-    </button>
-  );
-}
-
 function LecteurAudio(){
   const[texte,setTexte]=useState("");
   const[lecture,setLecture]=useState(false);
@@ -939,11 +911,9 @@ JSON pur seulement.
     <div style={{marginBottom:14,background:"#F0FDF4",borderRadius:10,padding:12,textAlign:"center"}}>
       <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🎤 Parlez pour remplir automatiquement</div>
       <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, achat 200 francs, vente 350 francs, seuil 10"</div>
-      <MicButton
-        onStart={demarrer} onStop={()=>window._stockRec?.stop()}
-        disabled={ecoute}
-        label={ecoute?"🔴 Écoute…":"🎤 Parler"}
-        style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}/>
+      <button onClick={demarrer} disabled={ecoute} style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+        {ecoute?"🔴 Écoute…":"🎤 Parler"}
+      </button>
       {msg&&<div style={{marginTop:8,fontSize:12,color:C.primary,fontWeight:600}}>{msg}</div>}
     </div>
   );
@@ -1056,7 +1026,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[showManuel,setShowManuel]=useState(false);
   const[showParams,setShowParams]=useState(false);
   const recognRef=useRef(null);
-  const holdRef=useRef(null);
   const synth=useRef(window.speechSynthesis);
 
   const KEY_TX=`vv_tx_${user.id}`;
@@ -1111,7 +1080,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
-    rec.onspeechend=()=>{rec.stop();};
+
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
@@ -1235,7 +1204,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
-            messages:[{role:"user",content:`Classe cet article de commerce africain: "${newArt.nom.trim()}" dans UNE de ces catégories exactes: Hygiène, Alimentation, Boisson, Textile, Électronique, Cosmétique, Pharmacie, Papeterie, Quincaillerie, Jouet, Maraîchage, Bétail, Autre. Réponds UNIQUEMENT avec le nom de catégorie, rien d'autre.`}]})});
+            messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
         const d=await r.json();
         categorie=d.content?.[0]?.text?.trim()||"Général";
       }catch{}
@@ -1308,18 +1277,14 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                   style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
                 {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
               </div>
-              <MicButton
-                onStart={()=>{
-                  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-                  if(!SR) return;
-                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
-                  window._searchRec=rec;
-                  rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
-                  rec.start();
-                }}
-                onStop={()=>window._searchRec?.stop()}
-                label="🎤"
-                style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}/>
+              <button onClick={()=>{
+                const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                if(!SR) return;
+                const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+                rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
+                rec.onspeechend=()=>rec.stop();
+                rec.start();
+              }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
@@ -1358,14 +1323,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 🗣 "Reçu 20 pagnes pour le stock"<br/>
                 🗣 "Dépensé 5 000 pour le transport"
               </div>
-              <button
-                onMouseDown={()=>{holdRef.current=setTimeout(()=>{holdRef.current="hold";},300);demarrer();}}
-                onMouseUp={()=>{if(holdRef.current==="hold")recognRef.current?.stop();clearTimeout(holdRef.current);holdRef.current=null;}}
-                onTouchStart={e=>{e.preventDefault();holdRef.current=setTimeout(()=>{holdRef.current="hold";},300);demarrer();}}
-                onTouchEnd={e=>{e.preventDefault();if(holdRef.current==="hold")recognRef.current?.stop();clearTimeout(holdRef.current);holdRef.current=null;}}
-                style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.mic},#FF8E53)`,border:"none",cursor:"pointer",fontSize:32,boxShadow:"0 6px 20px rgba(220,38,38,.4)",userSelect:"none",WebkitUserSelect:"none",touchAction:"none"}}>🎤</button>
-              <div style={{marginTop:10,fontSize:11,color:C.muted}}>Appui simple ou maintenez appuyé</div>
-              <div style={{fontSize:10,color:C.muted,marginTop:3}}>Relâchez pour arrêter · Appui court = auto</div>
+              <button onClick={demarrer} style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.mic},#FF8E53)`,border:"none",cursor:"pointer",fontSize:32,boxShadow:"0 6px 20px rgba(220,38,38,.4)"}}>🎤</button>
+              <div style={{marginTop:10,fontSize:11,color:C.muted}}>Appuyez pour parler</div>
               <button onClick={()=>setShowManuel(true)} style={{marginTop:14,background:"transparent",border:`1px solid ${C.border}`,borderRadius:20,padding:"6px 16px",color:C.muted,fontSize:11,cursor:"pointer"}}>✏️ Saisie manuelle</button>
             </>}
             {etat==="ecoute"&&<>
