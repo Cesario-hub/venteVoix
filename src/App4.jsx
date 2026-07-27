@@ -46,6 +46,8 @@ const PLANS = [
 // ══════════════════════════════════════════════════════════════════════════════
 // STOCKAGE LOCAL — toutes les données dans localStorage
 // ══════════════════════════════════════════════════════════════════════════════
+function genererCodeArticle(stock){const nums=stock.map(a=>parseInt((a.code||"ART-000").replace("ART-",""))||0);const max=nums.length>0?Math.max(...nums):0;return "ART-"+String(max+1).padStart(3,"0");}
+function trouverArticleExistant(stock,nom){const n=nom.toLowerCase().trim();return stock.find(a=>a.nom.toLowerCase()===n||a.nom.toLowerCase().includes(n)||n.includes(a.nom.toLowerCase()));}
 function lsGet(key){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):null; }catch{ return null; } }
 function lsSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch{} }
 
@@ -874,21 +876,27 @@ function StockVoiceInput({onResult,stock}){
   const demarrer=async()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return;
-    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
     rec.onstart=()=>{setEcoute(true);setMsg("")};
     rec.onerror=()=>setEcoute(false);
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setEcoute(false);setMsg("Analyse...");
       const sys=`Tu es assistant comptable africain. L'utilisateur décrit un article à ajouter au stock.
-Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
-JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
+Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixAchat":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
+JSON pur seulement. 
+- Si quantite non mentionnée mets 0
+- Si prixAchat (prix d'achat fournisseur) non mentionné mets 0
+- Si prixVente (prix de vente client) non mentionné mets 0  
+- Si seuil non mentionné mets 5
+- prixAchat = ce que le marchand paie pour acheter l'article
+- prixVente = ce que le marchand vend l'article au client`;
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
-          onResult({nom:res.nom,quantite:String(res.quantite||0),prixVente:String(res.prixVente||0),seuil:String(res.seuil||5)});
+          onResult({nom:res.nom,quantite:String(res.quantite||0),prixAchat:String(res.prixAchat||0),prixVente:String(res.prixVente||0),seuil:String(res.seuil||5)});
           setMsg("✅ "+res.confirmation);
           const u=new SpeechSynthesisUtterance(res.confirmation);u.lang="fr-FR";synth.current?.speak(u);
         }else setMsg("Je n'ai pas compris. Réessayez.");
@@ -899,7 +907,7 @@ JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mention
   return(
     <div style={{marginBottom:14,background:"#F0FDF4",borderRadius:10,padding:12,textAlign:"center"}}>
       <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🎤 Parlez pour remplir automatiquement</div>
-      <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, prix 300 francs, seuil 10"</div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, achat 200 francs, vente 350 francs, seuil 10"</div>
       <button onClick={demarrer} disabled={ecoute} style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
         {ecoute?"🔴 Écoute…":"🎤 Parler"}
       </button>
@@ -963,6 +971,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[onglet,setOnglet]=useState("accueil");
   const[showStockForm,setShowStockForm]=useState(false);
   const[newArt,setNewArt]=useState({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
+  const[editArt,setEditArt]=useState(null);
   const[showRapport,setShowRapport]=useState(false);
   const[stockWarning,setStockWarning]=useState(null);
   const[showMouvements,setShowMouvements]=useState(false);
@@ -1024,6 +1033,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
+    rec.onspeechend=()=>{rec.stop();};
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
@@ -1104,10 +1114,53 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
   const config=getConfig();
 
-  const ajouterArt=()=>{
+  const ajouterArt=async()=>{
     if(!newArt.nom.trim()) return;
-    const a={id:Date.now(),nom:newArt.nom.trim(),quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
-    const ns=[...stock,a]; setStock(ns); saveStk(ns);
+    // Mode modification
+    if(editArt){
+      const ns=stock.map(a=>a.id===editArt.id?{
+        ...a,
+        nom:newArt.nom.trim(),
+        quantite:parseInt(newArt.quantite)||0,
+        prixAchat:parseInt(newArt.prixAchat)||0,
+        prixVente:parseInt(newArt.prixVente)||0,
+        seuil:parseInt(newArt.seuil)||5,
+      }:a);
+      setStock(ns); saveStk(ns);
+      setEditArt(null);
+      setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
+      setShowStockForm(false);
+      parler("Article "+newArt.nom.trim()+" modifié.");
+      return;
+    }
+    // Vérifie si l'article existe déjà
+    const existing=trouverArticleExistant(stock,newArt.nom.trim());
+    if(existing){
+      // Met à jour le stock existant
+      const qte=parseInt(newArt.quantite)||0;
+      const ns=stock.map(a=>a.id===existing.id?{
+        ...a,
+        quantite:(a.quantite||0)+qte,
+        prixAchat:parseInt(newArt.prixAchat)||a.prixAchat||0,
+        prixVente:parseInt(newArt.prixVente)||a.prixVente||0,
+      }:a);
+      setStock(ns); saveStk(ns);
+      parler("Stock de "+existing.nom+" mis à jour. Nouvelle quantité : "+((existing.quantite||0)+qte)+" unités.");
+    } else {
+      // Génère code auto et catégorie
+      const code=genererCodeArticle(stock);
+      let categorie="Général";
+      try{
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
+            messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
+        const d=await r.json();
+        categorie=d.content?.[0]?.text?.trim()||"Général";
+      }catch{}
+      const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
+      const ns=[...stock,a]; setStock(ns); saveStk(ns);
+      parler("Nouvel article "+newArt.nom.trim()+" enregistré avec le code "+code+".");
+    }
     setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
   };
   const suppTx=id=>{ const nl=transactions.filter(t=>t.id!==id); setTransactions(nl); saveTx(nl); };
@@ -1251,7 +1304,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           {ongletStock==="articles"&&<>
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
-              <StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />
+              <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
+              {!editArt&&<StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />}
               {[["Nom *","nom","text"],["Quantité","quantite","number"],["Prix achat (F)","prixAchat","number"],["Prix vente (F)","prixVente","number"],["Seuil alerte","seuil","number"]].map(([l,k,t])=>(
                 <div key={k} style={{marginBottom:10}}>
                   <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{l}</div>
@@ -1259,8 +1313,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 </div>
               ))}
               <div style={{display:"flex",gap:10,marginTop:12}}>
-                <button onClick={()=>setShowStockForm(false)} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
-                <button onClick={ajouterArt} style={btnS(C.primary,"#FFF")}>✓ Ajouter</button>
+                <button onClick={()=>{setShowStockForm(false);setEditArt(null);setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"})}} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
+                <button onClick={ajouterArt} style={btnS(C.primary,"#FFF")}>{editArt?"✓ Modifier":"✓ Ajouter"}</button>
               </div>
             </div>
           )}
@@ -1272,8 +1326,12 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{art.nom}</div>
+                    <div style={{display:"flex",gap:5,marginBottom:2}}>
+                      <span style={{background:C.primaryMid,color:"#FFF",fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:20}}>{art.code||"—"}</span>
+                      {art.categorie&&<span style={{background:"#EFF6FF",color:"#1D4ED8",fontSize:9,fontWeight:600,padding:"1px 7px",borderRadius:20}}>{art.categorie}</span>}
+                    </div>
                     <div style={{fontSize:12,color:C.muted}}>Achat : {fmt(art.prixAchat??0)} · Vente : {fmt(art.prixVente??0)}</div>
-                  <div style={{fontSize:12,color:C.muted}}>Marge : {fmt((art.prixVente??0)-(art.prixAchat??0))} · Valeur stock : {fmt((art.quantite??0)*(art.prixAchat??0))}</div>
+                  <div style={{fontSize:12,color:C.muted}}>Marge : {fmt((art.prixVente??0)-(art.prixAchat??0))} · Valeur : {fmt((art.quantite??0)*(art.prixAchat??0))}</div>
                     {f&&<div style={{fontSize:11,color:C.accent,fontWeight:700,marginTop:3}}>⚠️ Faible (seuil : {art.seuil})</div>}
                   </div>
                   <div style={{textAlign:"right"}}>
@@ -1281,7 +1339,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                     <div style={{display:"flex",gap:5,marginTop:5}}>
                       <button onClick={()=>{const ns=stock.map(a=>a.id===art.id?{...a,quantite:(a.quantite??0)+1}:a);setStock(ns);saveStk(ns);}} style={{border:`1px solid ${C.primary}`,background:"none",borderRadius:6,padding:"2px 9px",cursor:"pointer",color:C.primary,fontWeight:700}}>+</button>
                       <button onClick={()=>{const ns=stock.map(a=>a.id===art.id?{...a,quantite:Math.max(0,(a.quantite??0)-1)}:a);setStock(ns);saveStk(ns);}} style={{border:`1px solid ${C.muted}`,background:"none",borderRadius:6,padding:"2px 9px",cursor:"pointer",color:C.muted,fontWeight:700}}>−</button>
-                      <button onClick={()=>suppArt(art.id)} style={{border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:15}}>🗑</button>
+                      <button onClick={()=>{setEditArt(art);setNewArt({nom:art.nom,quantite:String(art.quantite||0),prixAchat:String(art.prixAchat||0),prixVente:String(art.prixVente||0),seuil:String(art.seuil||5)});setShowStockForm(true);}} style={{border:"none",background:"none",cursor:"pointer",color:C.primaryMid,fontSize:15}}>✏️</button>
+                    <button onClick={()=>{if(confirm("Supprimer "+art.nom+" ?"))suppArt(art.id)}} style={{border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:15}}>🗑</button>
                     </div>
                   </div>
                 </div>

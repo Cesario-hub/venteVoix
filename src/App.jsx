@@ -961,6 +961,46 @@ function SaisieManuelle({onValider,onClose}){
   );
 }
 
+function exporterDonnees(user,transactions,stock){
+  const data={
+    version:"1.0",
+    exportedAt:new Date().toISOString(),
+    user:{nom:user.nom,tel:user.tel,plan:user.plan},
+    transactions,
+    stock,
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`VenteVoix_sauvegarde_${user.nom.replace(/ /g,"_")}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importerDonnees(file,user,setTransactions,setStock,saveTx,saveStk,parler){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.version||!data.transactions||!data.stock){
+        alert("Fichier invalide. Veuillez utiliser un fichier de sauvegarde VenteVoix.");
+        return;
+      }
+      if(confirm(`Restaurer ${data.transactions.length} transactions et ${data.stock.length} articles du ${new Date(data.exportedAt).toLocaleDateString("fr-FR")} ?`)){
+        setTransactions(data.transactions);
+        setStock(data.stock);
+        saveTx(data.transactions);
+        saveStk(data.stock);
+        parler("Données restaurées avec succès.");
+      }
+    }catch{
+      alert("Erreur lors de la lecture du fichier.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[transactions,setTransactions]=useState(()=>lsGet(`vv_tx_${user.id}`)||[]);
   const[stock,setStock]=useState(()=>lsGet(`vv_stk_${user.id}`)||[]);
@@ -973,6 +1013,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[newArt,setNewArt]=useState({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
   const[editArt,setEditArt]=useState(null);
   const[showRapport,setShowRapport]=useState(false);
+  const[searchStock,setSearchStock]=useState("");
+  const[triCategorie,setTriCategorie]=useState("tous");
   const[stockWarning,setStockWarning]=useState(null);
   const[showMouvements,setShowMouvements]=useState(false);
   const[ongletStock,setOngletStock]=useState('articles');
@@ -1109,6 +1151,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
+  const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
+  const stockFiltré=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1295,13 +1339,36 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         {onglet==="stock"&&canStock&&<>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{fontWeight:700,fontSize:15}}>Stock ({stock.length})</div>
-            <button onClick={()=>setShowStockForm(!showStockForm)} style={{background:C.primary,border:"none",borderRadius:10,padding:"7px 14px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Ajouter</button>
+            <button onClick={()=>{setShowStockForm(!showStockForm);setEditArt(null);}} style={{background:C.primary,border:"none",borderRadius:10,padding:"7px 14px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Ajouter</button>
+          </div>
+          {/* Barre de recherche */}
+          <div style={{position:"relative",marginBottom:10}}>
+            <input type="text" placeholder="🔍 Rechercher un article..." value={searchStock} onChange={e=>setSearchStock(e.target.value)}
+              style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"9px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+            {searchStock&&<button onClick={()=>setSearchStock("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:16}}>✕</button>}
+          </div>
+          {/* Filtre par catégorie */}
+          {categories.length>2&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            {categories.map(cat=>(
+              <button key={cat} onClick={()=>setTriCategorie(cat)} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${triCategorie===cat?C.primary:C.border}`,background:triCategorie===cat?C.primary:"transparent",color:triCategorie===cat?"#FFF":C.muted,fontSize:11,fontWeight:triCategorie===cat?700:400,cursor:"pointer"}}>
+                {cat==="tous"?"🗂 Tous":cat}
+              </button>
+            ))}
+          </div>}
+          {/* Export / Import */}
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <button onClick={()=>exporterDonnees(user,transactions,stock)} style={{flex:1,padding:"8px",borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",color:C.primary,fontWeight:600,fontSize:11,cursor:"pointer"}}>💾 Sauvegarder mes données</button>
+            <label style={{flex:1,padding:"8px",borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",color:C.primaryMid,fontWeight:600,fontSize:11,cursor:"pointer",textAlign:"center"}}>
+              📂 Restaurer
+              <input type="file" accept=".json" style={{display:"none"}} onChange={e=>{if(e.target.files[0])importerDonnees(e.target.files[0],user,setTransactions,setStock,saveTx,saveStk,parler)}}/>
+            </label>
           </div>
           <div style={{display:"flex",gap:6,marginBottom:12}}>
             <button onClick={()=>setOngletStock("articles")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="articles"?C.primary:C.border}`,background:ongletStock==="articles"?C.primary:"transparent",color:ongletStock==="articles"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📦 Articles</button>
             <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
           </div>
           {ongletStock==="articles"&&<>
+          {ongletStock==="articles"&&stockFiltré.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
@@ -1319,7 +1386,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             </div>
           )}
           {stock.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📦</div>Aucun article.</div>}
-          {stock.map(art=>{
+          {stockFiltré.map(art=>{
             const f=(art.quantite??0)<=(art.seuil??5);
             return(
               <div key={art.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${f?C.accent:C.primary}`}}>
