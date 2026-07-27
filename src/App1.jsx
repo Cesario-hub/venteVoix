@@ -874,27 +874,21 @@ function StockVoiceInput({onResult,stock}){
   const demarrer=async()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return;
-    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
+    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
     rec.onstart=()=>{setEcoute(true);setMsg("")};
     rec.onerror=()=>setEcoute(false);
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setEcoute(false);setMsg("Analyse...");
       const sys=`Tu es assistant comptable africain. L'utilisateur décrit un article à ajouter au stock.
-Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixAchat":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
-JSON pur seulement. 
-- Si quantite non mentionnée mets 0
-- Si prixAchat (prix d'achat fournisseur) non mentionné mets 0
-- Si prixVente (prix de vente client) non mentionné mets 0  
-- Si seuil non mentionné mets 5
-- prixAchat = ce que le marchand paie pour acheter l'article
-- prixVente = ce que le marchand vend l'article au client`;
+Réponds UNIQUEMENT en JSON: {"nom":"...","quantite":n,"prixVente":n,"seuil":n,"confirmation":"phrase courte"}
+JSON pur seulement. Si quantite non mentionnée mets 0. Si prixVente non mentionné mets 0. Si seuil non mentionné mets 5.`;
       try{
-        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
-          onResult({nom:res.nom,quantite:String(res.quantite||0),prixAchat:String(res.prixAchat||0),prixVente:String(res.prixVente||0),seuil:String(res.seuil||5)});
+          onResult({nom:res.nom,quantite:String(res.quantite||0),prixVente:String(res.prixVente||0),seuil:String(res.seuil||5)});
           setMsg("✅ "+res.confirmation);
           const u=new SpeechSynthesisUtterance(res.confirmation);u.lang="fr-FR";synth.current?.speak(u);
         }else setMsg("Je n'ai pas compris. Réessayez.");
@@ -905,7 +899,7 @@ JSON pur seulement.
   return(
     <div style={{marginBottom:14,background:"#F0FDF4",borderRadius:10,padding:12,textAlign:"center"}}>
       <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🎤 Parlez pour remplir automatiquement</div>
-      <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, achat 200 francs, vente 350 francs, seuil 10"</div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, prix 300 francs, seuil 10"</div>
       <button onClick={demarrer} disabled={ecoute} style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
         {ecoute?"🔴 Écoute…":"🎤 Parler"}
       </button>
@@ -1030,7 +1024,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
-    rec.onspeechend=()=>{rec.stop();};
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
