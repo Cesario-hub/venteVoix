@@ -46,8 +46,6 @@ const PLANS = [
 // ══════════════════════════════════════════════════════════════════════════════
 // STOCKAGE LOCAL — toutes les données dans localStorage
 // ══════════════════════════════════════════════════════════════════════════════
-function genererCodeArticle(stock){const nums=stock.map(a=>parseInt((a.code||"ART-000").replace("ART-",""))||0);const max=nums.length>0?Math.max(...nums):0;return "ART-"+String(max+1).padStart(3,"0");}
-function trouverArticleExistant(stock,nom){const n=nom.toLowerCase().trim();return stock.find(a=>a.nom.toLowerCase()===n||a.nom.toLowerCase().includes(n)||n.includes(a.nom.toLowerCase()));}
 function lsGet(key){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):null; }catch{ return null; } }
 function lsSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch{} }
 
@@ -876,7 +874,7 @@ function StockVoiceInput({onResult,stock}){
   const demarrer=async()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return;
-    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
+    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;rec.onspeechend=()=>{rec.stop()};
     rec.onstart=()=>{setEcoute(true);setMsg("")};
     rec.onerror=()=>setEcoute(false);
     rec.onresult=async e=>{
@@ -1113,36 +1111,10 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
   const config=getConfig();
 
-  const ajouterArt=async()=>{
+  const ajouterArt=()=>{
     if(!newArt.nom.trim()) return;
-    // Vérifie si l'article existe déjà
-    const existing=trouverArticleExistant(stock,newArt.nom.trim());
-    if(existing){
-      // Met à jour le stock existant
-      const qte=parseInt(newArt.quantite)||0;
-      const ns=stock.map(a=>a.id===existing.id?{
-        ...a,
-        quantite:(a.quantite||0)+qte,
-        prixAchat:parseInt(newArt.prixAchat)||a.prixAchat||0,
-        prixVente:parseInt(newArt.prixVente)||a.prixVente||0,
-      }:a);
-      setStock(ns); saveStk(ns);
-      parler("Stock de "+existing.nom+" mis à jour. Nouvelle quantité : "+((existing.quantite||0)+qte)+" unités.");
-    } else {
-      // Génère code auto et catégorie
-      const code=genererCodeArticle(stock);
-      let categorie="Général";
-      try{
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
-            messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
-        const d=await r.json();
-        categorie=d.content?.[0]?.text?.trim()||"Général";
-      }catch{}
-      const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
-      const ns=[...stock,a]; setStock(ns); saveStk(ns);
-      parler("Nouvel article "+newArt.nom.trim()+" enregistré avec le code "+code+".");
-    }
+    const a={id:Date.now(),nom:newArt.nom.trim(),quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
+    const ns=[...stock,a]; setStock(ns); saveStk(ns);
     setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
   };
   const suppTx=id=>{ const nl=transactions.filter(t=>t.id!==id); setTransactions(nl); saveTx(nl); };
@@ -1307,12 +1279,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{art.nom}</div>
-                    <div style={{display:"flex",gap:5,marginBottom:2}}>
-                      <span style={{background:C.primaryMid,color:"#FFF",fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:20}}>{art.code||"—"}</span>
-                      {art.categorie&&<span style={{background:"#EFF6FF",color:"#1D4ED8",fontSize:9,fontWeight:600,padding:"1px 7px",borderRadius:20}}>{art.categorie}</span>}
-                    </div>
                     <div style={{fontSize:12,color:C.muted}}>Achat : {fmt(art.prixAchat??0)} · Vente : {fmt(art.prixVente??0)}</div>
-                  <div style={{fontSize:12,color:C.muted}}>Marge : {fmt((art.prixVente??0)-(art.prixAchat??0))} · Valeur : {fmt((art.quantite??0)*(art.prixAchat??0))}</div>
+                  <div style={{fontSize:12,color:C.muted}}>Marge : {fmt((art.prixVente??0)-(art.prixAchat??0))} · Valeur stock : {fmt((art.quantite??0)*(art.prixAchat??0))}</div>
                     {f&&<div style={{fontSize:11,color:C.accent,fontWeight:700,marginTop:3}}>⚠️ Faible (seuil : {art.seuil})</div>}
                   </div>
                   <div style={{textAlign:"right"}}>
