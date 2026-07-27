@@ -1157,7 +1157,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
-  const stockFiltré=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
+  const stockFiltre=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1418,7 +1418,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
           </div>
           {ongletStock==="articles"&&<>
-          {ongletStock==="articles"&&stockFiltré.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
+          {ongletStock==="articles"&&stockFiltre.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
@@ -1436,7 +1436,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             </div>
           )}
           {stock.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📦</div>Aucun article.</div>}
-          {stockFiltré.map(art=>{
+          {stockFiltre.map(art=>{
             const f=(art.quantite??0)<=(art.seuil??5);
             return(
               <div key={art.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${f?C.accent:C.primary}`}}>
