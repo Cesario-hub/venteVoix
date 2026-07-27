@@ -1267,10 +1267,20 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
           {/* Recherche prix article */}
           {canStock&&stock.length>0&&<div style={{marginBottom:14}}>
-            <div style={{position:"relative"}}>
-              <input type="text" placeholder="🔍 Chercher prix d'un article..." value={searchAccueil} onChange={e=>setSearchAccueil(e.target.value)}
-                style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-              {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:16}}>✕</button>}
+            <div style={{position:"relative",display:"flex",gap:6}}>
+              <div style={{flex:1,position:"relative"}}>
+                <input type="text" placeholder="🔍 Chercher par nom ou code (ART-001)..." value={searchAccueil} onChange={e=>setSearchAccueil(e.target.value)}
+                  style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
+              </div>
+              <button onClick={()=>{
+                const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                if(!SR) return;
+                const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+                rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
+                rec.onspeechend=()=>rec.stop();
+                rec.start();
+              }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
