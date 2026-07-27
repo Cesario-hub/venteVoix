@@ -1156,8 +1156,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
-  const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
-  const stockFiltré=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
+  const categories=["tous",...new Set(stock.map(a=>a.categorie||"General").filter(Boolean))];
+  const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1194,24 +1194,20 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         prixVente:parseInt(newArt.prixVente)||a.prixVente||0,
       }:a);
       setStock(ns); saveStk(ns);
-      const txE={id:Date.now(),date:new Date().toISOString(),type:"stock_entree",description:"Entree stock : "+existing.nom,quantite:qte,prixUnitaire:parseInt(newArt.prixAchat)||existing.prixAchat||0,montant:(parseInt(newArt.prixAchat)||existing.prixAchat||0)*qte,texteOriginal:"Ajout stock manuel",articleStock:existing.nom};
-      const nlE=[txE,...transactions];setTransactions(nlE);saveTx(nlE);
       parler("Stock de "+existing.nom+" mis à jour. Nouvelle quantité : "+((existing.quantite||0)+qte)+" unités.");
     } else {
       // Génère code auto et catégorie
       const code=genererCodeArticle(stock);
-      let categorie="Général";
+      let categorie="General";
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
             messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
         const d=await r.json();
-        categorie=d.content?.[0]?.text?.trim()||"Général";
+        categorie=d.content?.[0]?.text?.trim()||"General";
       }catch{}
       const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
       const ns=[...stock,a]; setStock(ns); saveStk(ns);
-      const txN={id:Date.now()+1,date:new Date().toISOString(),type:"stock_entree",description:"Nouvel article : "+newArt.nom.trim()+" ("+code+")",quantite:parseInt(newArt.quantite)||0,prixUnitaire:parseInt(newArt.prixAchat)||0,montant:(parseInt(newArt.prixAchat)||0)*(parseInt(newArt.quantite)||0),texteOriginal:"Ajout stock manuel",articleStock:newArt.nom.trim()};
-      const nlN=[txN,...transactions];setTransactions(nlN);saveTx(nlN);
       parler("Nouvel article "+newArt.nom.trim()+" enregistré avec le code "+code+".");
     }
     setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
@@ -1422,7 +1418,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
           </div>
           {ongletStock==="articles"&&<>
-          {ongletStock==="articles"&&stockFiltré.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
+          {ongletStock==="articles"&&stockFiltre.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
@@ -1440,7 +1436,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             </div>
           )}
           {stock.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📦</div>Aucun article.</div>}
-          {stockFiltré.map(art=>{
+          {stockFiltre.map(art=>{
             const f=(art.quantite??0)<=(art.seuil??5);
             return(
               <div key={art.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${f?C.accent:C.primary}`}}>
