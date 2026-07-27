@@ -890,7 +890,7 @@ JSON pur seulement.
 - prixAchat = ce que le marchand paie pour acheter l'article
 - prixVente = ce que le marchand vend l'article au client`;
       try{
-        const r=await fetch("/.netlify/functions/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,system:sys,messages:[{role:"user",content:t}]})});
         const d=await r.json();
         const res=JSON.parse(d.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g,"").trim()||"{}");
         if(res.nom){
