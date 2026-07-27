@@ -1156,8 +1156,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
-  const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
-  const stockFiltre=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
+  const categories=["tous",...new Set(stock.map(a=>a.categorie||"General").filter(Boolean))];
+  const stockFiltre=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1198,13 +1198,13 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     } else {
       // Génère code auto et catégorie
       const code=genererCodeArticle(stock);
-      let categorie="Général";
+      let categorie="General";
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
             messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
         const d=await r.json();
-        categorie=d.content?.[0]?.text?.trim()||"Général";
+        categorie=d.content?.[0]?.text?.trim()||"General";
       }catch{}
       const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
       const ns=[...stock,a]; setStock(ns); saveStk(ns);
