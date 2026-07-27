@@ -1157,7 +1157,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"General").filter(Boolean))];
-  const stockFiltre=searchStock||triCategorie!=" tous\?stock.filter(a=>(triCategorie==	ous\||(a.categorie||\General\)===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||\).toLowerCase().includes(searchStock.toLowerCase()))):stock;
+  const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
