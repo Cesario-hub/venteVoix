@@ -1080,7 +1080,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
-    rec.onspeechend=()=>{rec.stop();};
+
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
