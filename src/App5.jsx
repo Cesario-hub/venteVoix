@@ -1014,8 +1014,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[editArt,setEditArt]=useState(null);
   const[showRapport,setShowRapport]=useState(false);
   const[searchStock,setSearchStock]=useState("");
-  const[searchAccueil,setSearchAccueil]=useState("");
-  const[showPrixSearch,setShowPrixSearch]=useState(false);
   const[triCategorie,setTriCategorie]=useState("tous");
   const[stockWarning,setStockWarning]=useState(null);
   const[showMouvements,setShowMouvements]=useState(false);
@@ -1261,41 +1259,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           <button onClick={()=>setShowRapport(true)} style={{width:"100%",padding:"12px",borderRadius:12,border:`1.5px solid ${C.primary}`,background:"transparent",color:C.primary,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
             🎙️ Rapport audio — Bilan & WhatsApp
           </button>
-
-          {/* Recherche prix article */}
-          {canStock&&stock.length>0&&<div style={{marginBottom:14}}>
-            <div style={{position:"relative"}}>
-              <input type="text" placeholder="🔍 Chercher prix d'un article..." value={searchAccueil} onChange={e=>setSearchAccueil(e.target.value)}
-                style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-              {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:16}}>✕</button>}
-            </div>
-            {searchAccueil&&(()=>{
-              const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
-              return results.length>0?(
-                <div style={{background:C.surface,borderRadius:10,marginTop:4,boxShadow:"0 4px 14px rgba(0,0,0,.1)",overflow:"hidden"}}>
-                  {results.slice(0,5).map(a=>(
-                    <div key={a.id} style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div>
-                        <div style={{display:"flex",gap:5,marginBottom:2}}>
-                          {a.code&&<span style={{background:C.primaryMid,color:"#FFF",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:20}}>{a.code}</span>}
-                          {a.categorie&&<span style={{background:"#EFF6FF",color:"#1D4ED8",fontSize:9,padding:"1px 6px",borderRadius:20}}>{a.categorie}</span>}
-                        </div>
-                        <div style={{fontWeight:700,fontSize:13}}>{a.nom}</div>
-                        <div style={{fontSize:11,color:C.muted}}>Stock : {a.quantite??0} unités</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:11,color:C.muted}}>Achat</div>
-                        <div style={{fontWeight:700,color:C.primary,fontSize:14}}>{fmt(a.prixAchat??0)}</div>
-                        <div style={{fontSize:11,color:C.muted,marginTop:4}}>Vente</div>
-                        <div style={{fontWeight:800,color:C.primaryLight,fontSize:16}}>{fmt(a.prixVente??0)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ):<div style={{background:"#FEF2F2",borderRadius:10,padding:"10px 14px",marginTop:4,fontSize:12,color:C.danger}}>Aucun article trouvé.</div>;
-            })()}
-          </div>}
-
           {showManuel&&<SaisieManuelle onValider={res=>{setInterpretation(res);setTranscription(res.description);setEtat("confirmation");setShowManuel(false)}} onClose={()=>setShowManuel(false)}/>}
           <div style={{background:C.surface,borderRadius:18,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.08)",textAlign:"center"}}>
             {etat==="idle"&&<>
