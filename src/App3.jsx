@@ -971,7 +971,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[onglet,setOnglet]=useState("accueil");
   const[showStockForm,setShowStockForm]=useState(false);
   const[newArt,setNewArt]=useState({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
-  const[editArt,setEditArt]=useState(null);
   const[showRapport,setShowRapport]=useState(false);
   const[stockWarning,setStockWarning]=useState(null);
   const[showMouvements,setShowMouvements]=useState(false);
@@ -1116,23 +1115,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
   const ajouterArt=async()=>{
     if(!newArt.nom.trim()) return;
-    // Mode modification
-    if(editArt){
-      const ns=stock.map(a=>a.id===editArt.id?{
-        ...a,
-        nom:newArt.nom.trim(),
-        quantite:parseInt(newArt.quantite)||0,
-        prixAchat:parseInt(newArt.prixAchat)||0,
-        prixVente:parseInt(newArt.prixVente)||0,
-        seuil:parseInt(newArt.seuil)||5,
-      }:a);
-      setStock(ns); saveStk(ns);
-      setEditArt(null);
-      setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"});
-      setShowStockForm(false);
-      parler("Article "+newArt.nom.trim()+" modifié.");
-      return;
-    }
     // Vérifie si l'article existe déjà
     const existing=trouverArticleExistant(stock,newArt.nom.trim());
     if(existing){
@@ -1304,8 +1286,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
           {ongletStock==="articles"&&<>
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
-              <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
-              {!editArt&&<StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />}
+              <StockVoiceInput onResult={a=>setNewArt(p=>({...p,...a}))} />
               {[["Nom *","nom","text"],["Quantité","quantite","number"],["Prix achat (F)","prixAchat","number"],["Prix vente (F)","prixVente","number"],["Seuil alerte","seuil","number"]].map(([l,k,t])=>(
                 <div key={k} style={{marginBottom:10}}>
                   <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{l}</div>
@@ -1313,8 +1294,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 </div>
               ))}
               <div style={{display:"flex",gap:10,marginTop:12}}>
-                <button onClick={()=>{setShowStockForm(false);setEditArt(null);setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"})}} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
-                <button onClick={ajouterArt} style={btnS(C.primary,"#FFF")}>{editArt?"✓ Modifier":"✓ Ajouter"}</button>
+                <button onClick={()=>setShowStockForm(false)} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
+                <button onClick={ajouterArt} style={btnS(C.primary,"#FFF")}>✓ Ajouter</button>
               </div>
             </div>
           )}
@@ -1339,8 +1320,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                     <div style={{display:"flex",gap:5,marginTop:5}}>
                       <button onClick={()=>{const ns=stock.map(a=>a.id===art.id?{...a,quantite:(a.quantite??0)+1}:a);setStock(ns);saveStk(ns);}} style={{border:`1px solid ${C.primary}`,background:"none",borderRadius:6,padding:"2px 9px",cursor:"pointer",color:C.primary,fontWeight:700}}>+</button>
                       <button onClick={()=>{const ns=stock.map(a=>a.id===art.id?{...a,quantite:Math.max(0,(a.quantite??0)-1)}:a);setStock(ns);saveStk(ns);}} style={{border:`1px solid ${C.muted}`,background:"none",borderRadius:6,padding:"2px 9px",cursor:"pointer",color:C.muted,fontWeight:700}}>−</button>
-                      <button onClick={()=>{setEditArt(art);setNewArt({nom:art.nom,quantite:String(art.quantite||0),prixAchat:String(art.prixAchat||0),prixVente:String(art.prixVente||0),seuil:String(art.seuil||5)});setShowStockForm(true);}} style={{border:"none",background:"none",cursor:"pointer",color:C.primaryMid,fontSize:15}}>✏️</button>
-                    <button onClick={()=>{if(confirm("Supprimer "+art.nom+" ?"))suppArt(art.id)}} style={{border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:15}}>🗑</button>
+                      <button onClick={()=>suppArt(art.id)} style={{border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:15}}>🗑</button>
                     </div>
                   </div>
                 </div>
