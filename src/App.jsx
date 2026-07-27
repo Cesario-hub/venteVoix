@@ -874,7 +874,7 @@ function StockVoiceInput({onResult,stock}){
   const demarrer=async()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return;
-    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
+    const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;rec.onspeechend=()=>{rec.stop()};
     rec.onstart=()=>{setEcoute(true);setMsg("")};
     rec.onerror=()=>setEcoute(false);
     rec.onresult=async e=>{
