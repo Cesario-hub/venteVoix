@@ -1080,7 +1080,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
-    rec.onspeechend=()=>{rec.stop();};
+
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
@@ -1194,6 +1194,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         prixVente:parseInt(newArt.prixVente)||a.prixVente||0,
       }:a);
       setStock(ns); saveStk(ns);
+      const txE={id:Date.now(),date:new Date().toISOString(),type:"stock_entree",description:"Entree stock : "+existing.nom,quantite:qte,prixUnitaire:parseInt(newArt.prixAchat)||existing.prixAchat||0,montant:(parseInt(newArt.prixAchat)||existing.prixAchat||0)*qte,texteOriginal:"Ajout stock manuel",articleStock:existing.nom};
+      const nlE=[txE,...transactions];setTransactions(nlE);saveTx(nlE);
       parler("Stock de "+existing.nom+" mis à jour. Nouvelle quantité : "+((existing.quantite||0)+qte)+" unités.");
     } else {
       // Génère code auto et catégorie
@@ -1208,6 +1210,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
       }catch{}
       const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
       const ns=[...stock,a]; setStock(ns); saveStk(ns);
+      const txN={id:Date.now()+1,date:new Date().toISOString(),type:"stock_entree",description:"Nouvel article : "+newArt.nom.trim()+" ("+code+")",quantite:parseInt(newArt.quantite)||0,prixUnitaire:parseInt(newArt.prixAchat)||0,montant:(parseInt(newArt.prixAchat)||0)*(parseInt(newArt.quantite)||0),texteOriginal:"Ajout stock manuel",articleStock:newArt.nom.trim()};
+      const nlN=[txN,...transactions];setTransactions(nlN);saveTx(nlN);
       parler("Nouvel article "+newArt.nom.trim()+" enregistré avec le code "+code+".");
     }
     setNewArt({nom:"",quantite:"",prixAchat:"",prixVente:"",seuil:"5"}); setShowStockForm(false);
@@ -1267,10 +1271,20 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
           {/* Recherche prix article */}
           {canStock&&stock.length>0&&<div style={{marginBottom:14}}>
-            <div style={{position:"relative"}}>
-              <input type="text" placeholder="🔍 Chercher prix d'un article..." value={searchAccueil} onChange={e=>setSearchAccueil(e.target.value)}
-                style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-              {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:16}}>✕</button>}
+            <div style={{position:"relative",display:"flex",gap:6}}>
+              <div style={{flex:1,position:"relative"}}>
+                <input type="text" placeholder="🔍 Chercher par nom ou code (ART-001)..." value={searchAccueil} onChange={e=>setSearchAccueil(e.target.value)}
+                  style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+                {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
+              </div>
+              <button onClick={()=>{
+                const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                if(!SR) return;
+                const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+                rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
+                rec.onspeechend=()=>rec.stop();
+                rec.start();
+              }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
