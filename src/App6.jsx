@@ -84,18 +84,15 @@ function useActivationCode(code,userInfo){
 // CLAUDE API — interprétation vocale
 // ══════════════════════════════════════════════════════════════════════════════
 async function interpreterVoix(texte,stockItems){
-  const articlesStock=stockItems.map(s=>`${s.code||""}:${s.nom}(vente:${s.prixVente||0}F)`).join(", ")||"aucun";
+  const articlesStock=stockItems.map(s=>s.nom).join(", ")||"aucun";
   const sys=`Tu es assistant comptable secteur informel africain.
-Articles en stock avec leurs codes et prix de vente: ${articlesStock}
+Articles en stock disponibles: ${articlesStock}
 
 RÈGLES IMPORTANTES:
-1. Calcule TOUJOURS montantTotal = quantite * prixUnitaire
-2. Si le commerçant mentionne un CODE (ex: ART-001) ou un NOM approximatif, trouve l'article correspondant dans la liste.
-3. Si le commerçant dit un code (ART-001) sans mentionner le prix, utilise le prix de vente de cet article comme prixUnitaire.
-4. Si le commerçant donne un prix différent du prix stock, utilise le prix donné (bargain possible).
-5. Pour articleStock: mets le NOM EXACT de l'article trouvé dans le stock (pas le code).
-6. Reponds UNIQUEMENT en JSON valide:
-{"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom exact du stock"|null,"confirmation":"phrase courte naturelle avec montant"}
+1. Calcule TOUJOURS montantTotal = quantite * prixUnitaire (ex: 3 savons a 500F = montantTotal=1500)
+2. Pour articleStock: cherche la correspondance APPROXIMATIVE avec les articles en stock. Ex: "savon" correspond a "Savon bleu", "pagne" correspond a "Pagne wax". Si aucune correspondance, mets null.
+3. Reponds UNIQUEMENT en JSON valide:
+{"type":"vente"|"depense"|"stock_entree"|"inconnu","description":"...","quantite":n|null,"prixUnitaire":n|null,"montantTotal":n,"articleStock":"nom exact du stock"|null,"confirmation":"phrase courte naturelle"}
 JSON pur seulement, sans backticks.`;
   try{
     const r=await fetch("/api/claude",{method:"POST",
