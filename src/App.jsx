@@ -1087,29 +1087,31 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
         if(stkData&&stkData.length>0){
           const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
-          setStock(stk);lsSet(KEY_STK,stk);
+          setStock(stk);lsSet(KEY_STK,stk);  // skipSupabase handled by direct lsSet
         }
       }catch(e){console.log("Supabase load error:",e);}
     };
     loadFromSupabase();
   },[user.id]);
 
-  const saveTx=useCallback(async l=>{
+  const saveTx=useCallback(async (l,skipSupabase=false)=>{
     lsSet(KEY_TX,l);
+    if(skipSupabase) return;
     try{
       if(l.length>0){
         const t=l[0];
-        await supabase.from("transactions").insert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
+        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock},{onConflict:"id"});
       }
-    }catch{}
+    }catch(e){console.log("saveTx error:",e);}
   },[KEY_TX,user.id]);
-  const saveStk=useCallback(async l=>{
+  const saveStk=useCallback(async (l,skipSupabase=false)=>{
     lsSet(KEY_STK,l);
+    if(skipSupabase) return;
     try{
       for(const a of l){
         await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil},{onConflict:"id"});
       }
-    }catch{}
+    }catch(e){console.log("saveStk error:",e);}
   },[KEY_STK,user.id]);
   const parler=useCallback(t=>{
     synth.current?.cancel();
