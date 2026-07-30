@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase.js";
 import * as XLSX from "xlsx";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -58,26 +59,33 @@ function generateCode(){ return Math.floor(100000+Math.random()*900000).toString
 function getCodes(){ return lsGet("vv_codes")||{}; }
 function saveCodes(c){ lsSet("vv_codes",c); }
 
-function createCode(planId,note="",trialDays=0){
+async function createCode(planId,note="",trialDays=0){
   const codes=getCodes();
   const code=generateCode();
   const expireAt=trialDays>0?new Date(Date.now()+trialDays*24*60*60*1000).toISOString():null;
+  try{
+    await supabase.from("codes").insert({code,plan_id:planId,note,used:false,trial_days:trialDays,expire_at:expireAt,created_at:new Date().toISOString()});
+  }catch{}
   codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null,trialDays,expireAt};
   saveCodes(codes);
   return code;
 }
 
-function useActivationCode(code,userInfo){
-  // Code de test permanent
+async function useActivationCode(code,userInfo){
   if(code==="TEST01") return {ok:true,planId:"pro"};
+  try{
+    const {data,error}=await supabase.from("codes").select("*").eq("code",code).single();
+    if(!error&&data){
+      if(data.used) return {ok:false,error:"Code déjà utilisé."};
+      await supabase.from("codes").update({used:true,used_at:new Date().toISOString(),used_by:userInfo}).eq("code",code);
+      return {ok:true,planId:data.plan_id,trialDays:data.trial_days||0,expireAt:data.expire_at};
+    }
+  }catch{}
   const codes=getCodes();
   if(!codes[code]) return {ok:false,error:"Code invalide."};
   if(codes[code].used) return {ok:false,error:"Code déjà utilisé."};
-  codes[code].used=true;
-  codes[code].usedAt=new Date().toISOString();
-  codes[code].usedBy=userInfo;
-  saveCodes(codes);
-  return {ok:true,planId:codes[code].planId};
+  codes[code].used=true;codes[code].usedAt=new Date().toISOString();codes[code].usedBy=userInfo;
+  saveCodes(codes);return {ok:true,planId:codes[code].planId};
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -699,19 +707,24 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
       if(form.pin!==form.pin2){setErr("Les PIN ne correspondent pas.");setLoading(false);return;}
       const users=lsGet("vv_users")||{};
       if(users[form.tel]){setErr("Ce numéro est déjà inscrit.");setLoading(false);return;}
-      const result=useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
+      const result=await useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
       if(!result.ok){setErr(result.error);setLoading(false);return;}
-      const codeInfo=(getCodes()[form.code.trim()])||{};
-      const trialEnd=codeInfo.expireAt||null;
-      const user={id:Date.now(),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString(),trialEnd,isTrial:!!trialEnd};
+      const trialEnd=result.expireAt||null;
+      const user={id:String(Date.now()),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString(),trialEnd,isTrial:!!trialEnd};
+      try{await supabase.from("users").upsert({id:user.id,nom:user.nom,tel:user.tel,email:user.email,plan:user.plan,pin:form.pin,trial_end:trialEnd,is_trial:!!trialEnd,created_at:user.createdAt});}catch{}
       users[form.tel]=user;
       lsSet("vv_users",users);
-      const pins=lsGet("vv_pins")||{};
-      pins[form.tel]=form.pin;
-      lsSet("vv_pins",pins);
-      onAuth(user);
-    }else{
+      const pins=lsGet("vv_pins")||{};pins[form.tel]=form.pin;lsSet("vv_pins",pins);
+      onAuth(user);    }else{
       if(!form.tel||!form.pin){setErr("Entrez votre numéro et PIN.");setLoading(false);return;}
+      try{
+        const {data:sbUser}=await supabase.from("users").select("*").eq("tel",form.tel).single();
+        if(sbUser){
+          if(sbUser.pin!==form.pin){setErr("PIN incorrect.");setLoading(false);return;}
+          const user={id:sbUser.id,nom:sbUser.nom,tel:sbUser.tel,email:sbUser.email||"",plan:sbUser.plan,subscribed:true,createdAt:sbUser.created_at,trialEnd:sbUser.trial_end,isTrial:sbUser.is_trial};
+          onAuth(user);setLoading(false);return;
+        }
+      }catch{}
       const users=lsGet("vv_users")||{};
       const pins=lsGet("vv_pins")||{};
       const user=users[form.tel];
@@ -778,8 +791,8 @@ function AdminPanel({onClose}){
     if(pin===config.ADMIN_PIN){setAuth(true);setCodes(getCodes());}
     else alert("PIN incorrect");
   };
-  const generate=()=>{
-    const c=createCode(plan,note,trialDays);
+  const generate=async()=>{
+    const c=await createCodeSupabase(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
