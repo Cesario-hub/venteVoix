@@ -65,7 +65,7 @@ async function createCode(planId,note="",trialDays=0){
   const expireAt=trialDays>0?new Date(Date.now()+trialDays*24*60*60*1000).toISOString():null;
   try{
     await supabase.from("codes").insert({code,plan_id:planId,note,used:false,trial_days:trialDays,expire_at:expireAt,created_at:new Date().toISOString()});
-  }catch{}
+  }catch(e){console.error("SUPABASE ERROR:",JSON.stringify(e));}
   codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null,trialDays,expireAt};
   saveCodes(codes);
   return code;
