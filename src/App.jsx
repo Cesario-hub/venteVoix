@@ -1087,7 +1087,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
         if(stkData&&stkData.length>0){
           const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
-          setStock(stk);lsSet(KEY_STK,stk);  // skipSupabase handled by direct lsSet
+          setStock(stk);lsSet(KEY_STK,stk);  // skipSupabase handled by direct lsSet  // skipSupabase handled by direct lsSet
         }
       }catch(e){console.log("Supabase load error:",e);}
     };
