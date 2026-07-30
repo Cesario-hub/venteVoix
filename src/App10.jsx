@@ -65,7 +65,7 @@ async function createCode(planId,note="",trialDays=0){
   const expireAt=trialDays>0?new Date(Date.now()+trialDays*24*60*60*1000).toISOString():null;
   try{
     await supabase.from("codes").insert({code,plan_id:planId,note,used:false,trial_days:trialDays,expire_at:expireAt,created_at:new Date().toISOString()});
-  }catch{}
+  }catch(e){console.error("SUPABASE ERROR:",JSON.stringify(e));}
   codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null,trialDays,expireAt};
   saveCodes(codes);
   return code;
@@ -792,7 +792,7 @@ function AdminPanel({onClose}){
     else alert("PIN incorrect");
   };
   const generate=async()=>{
-    const c=await createCodeSupabase(plan,note,trialDays);
+    const c=await createCode(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
@@ -1075,42 +1075,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const KEY_TX=`vv_tx_${user.id}`;
   const KEY_STK=`vv_stk_${user.id}`;
 
-  // Charger depuis Supabase au démarrage
-  useEffect(()=>{
-    const loadFromSupabase=async()=>{
-      try{
-        const {data:txData}=await supabase.from("transactions").select("*").eq("user_id",user.id).order("date",{ascending:false});
-        if(txData&&txData.length>0){
-          const tx=txData.map(t=>({id:t.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prixUnitaire:t.prix_unitaire,montant:t.montant,texteOriginal:t.texte_original,articleStock:t.article_stock}));
-          setTransactions(tx);lsSet(KEY_TX,tx);
-        }
-        const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
-        if(stkData&&stkData.length>0){
-          const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
-          setStock(stk);lsSet(KEY_STK,stk);
-        }
-      }catch(e){console.log("Supabase load error:",e);}
-    };
-    loadFromSupabase();
-  },[user.id]);
-
-  const saveTx=useCallback(async l=>{
-    lsSet(KEY_TX,l);
-    try{
-      if(l.length>0){
-        const t=l[0];
-        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
-      }
-    }catch{}
-  },[KEY_TX,user.id]);
-  const saveStk=useCallback(async l=>{
-    lsSet(KEY_STK,l);
-    try{
-      for(const a of l){
-        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil});
-      }
-    }catch{}
-  },[KEY_STK,user.id]);
+  const saveTx=useCallback(l=>{ lsSet(KEY_TX,l); },[KEY_TX]);
+  const saveStk=useCallback(l=>{ lsSet(KEY_STK,l); },[KEY_STK]);
   const parler=useCallback(t=>{
     synth.current?.cancel();
     const u=new SpeechSynthesisUtterance(t);
@@ -1234,8 +1200,8 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
-  const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
-  const stockFiltré=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
+  const categories=["tous",...new Set(stock.map(a=>a.categorie||"General").filter(Boolean))];
+  const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1278,13 +1244,13 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     } else {
       // Génère code auto et catégorie
       const code=genererCodeArticle(stock);
-      let categorie="Général";
+      let categorie="General";
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
             messages:[{role:"user",content:`Classe cet article de commerce africain: "${newArt.nom.trim()}" dans UNE de ces catégories exactes: Hygiène, Alimentation, Boisson, Textile, Électronique, Cosmétique, Pharmacie, Papeterie, Quincaillerie, Jouet, Maraîchage, Bétail, Autre. Réponds UNIQUEMENT avec le nom de catégorie, rien d'autre.`}]})});
         const d=await r.json();
-        categorie=d.content?.[0]?.text?.trim()||"Général";
+        categorie=d.content?.[0]?.text?.trim()||"General";
       }catch{}
       const a={id:Date.now(),code,nom:newArt.nom.trim(),categorie,quantite:parseInt(newArt.quantite)||0,prixAchat:parseInt(newArt.prixAchat)||0,prixVente:parseInt(newArt.prixVente)||0,seuil:parseInt(newArt.seuil)||5};
       const ns=[...stock,a]; setStock(ns); saveStk(ns);
@@ -1510,7 +1476,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
           </div>
           {ongletStock==="articles"&&<>
-          {ongletStock==="articles"&&stockFiltré.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
+          {ongletStock==="articles"&&stockFiltre.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
@@ -1528,7 +1494,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             </div>
           )}
           {stock.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📦</div>Aucun article.</div>}
-          {stockFiltré.map(art=>{
+          {stockFiltre.map(art=>{
             const f=(art.quantite??0)<=(art.seuil??5);
             return(
               <div key={art.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${f?C.accent:C.primary}`}}>
