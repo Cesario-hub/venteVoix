@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase.js";
 import * as XLSX from "xlsx";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -58,26 +59,33 @@ function generateCode(){ return Math.floor(100000+Math.random()*900000).toString
 function getCodes(){ return lsGet("vv_codes")||{}; }
 function saveCodes(c){ lsSet("vv_codes",c); }
 
-function createCode(planId,note="",trialDays=0){
+async function createCode(planId,note="",trialDays=0){
   const codes=getCodes();
   const code=generateCode();
   const expireAt=trialDays>0?new Date(Date.now()+trialDays*24*60*60*1000).toISOString():null;
+  try{
+    await supabase.from("codes").insert({code,plan_id:planId,note,used:false,trial_days:trialDays,expire_at:expireAt,created_at:new Date().toISOString()});
+  }catch{}
   codes[code]={planId,note,used:false,createdAt:new Date().toISOString(),usedAt:null,usedBy:null,trialDays,expireAt};
   saveCodes(codes);
   return code;
 }
 
-function useActivationCode(code,userInfo){
-  // Code de test permanent
+async function useActivationCode(code,userInfo){
   if(code==="TEST01") return {ok:true,planId:"pro"};
+  try{
+    const {data,error}=await supabase.from("codes").select("*").eq("code",code).single();
+    if(!error&&data){
+      if(data.used) return {ok:false,error:"Code déjà utilisé."};
+      await supabase.from("codes").update({used:true,used_at:new Date().toISOString(),used_by:userInfo}).eq("code",code);
+      return {ok:true,planId:data.plan_id,trialDays:data.trial_days||0,expireAt:data.expire_at};
+    }
+  }catch{}
   const codes=getCodes();
   if(!codes[code]) return {ok:false,error:"Code invalide."};
   if(codes[code].used) return {ok:false,error:"Code déjà utilisé."};
-  codes[code].used=true;
-  codes[code].usedAt=new Date().toISOString();
-  codes[code].usedBy=userInfo;
-  saveCodes(codes);
-  return {ok:true,planId:codes[code].planId};
+  codes[code].used=true;codes[code].usedAt=new Date().toISOString();codes[code].usedBy=userInfo;
+  saveCodes(codes);return {ok:true,planId:codes[code].planId};
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -243,6 +251,34 @@ function Input({label,k,type="text",placeholder,value,onChange}){return<div styl
 // ══════════════════════════════════════════════════════════════════════════════
 // LECTEUR AUDIO — s'active si ?audio= dans l'URL
 // ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPOSANT MICRO UNIVERSEL - Appui simple ou appui long
+// ══════════════════════════════════════════════════════════════════════════════
+function MicButton({onStart,onStop,label="🎤",style={},disabled=false}){
+  const holdRef=useRef(null);
+  const handleDown=()=>{
+    if(disabled) return;
+    holdRef.current=setTimeout(()=>{holdRef.current="hold"},300);
+    onStart();
+  };
+  const handleUp=()=>{
+    if(holdRef.current==="hold") onStop();
+    clearTimeout(holdRef.current);
+    holdRef.current=null;
+  };
+  return(
+    <button
+      onMouseDown={handleDown} onMouseUp={handleUp}
+      onTouchStart={e=>{e.preventDefault();handleDown();}}
+      onTouchEnd={e=>{e.preventDefault();handleUp();}}
+      disabled={disabled}
+      style={{userSelect:"none",WebkitUserSelect:"none",touchAction:"none",...style}}>
+      {label}
+    </button>
+  );
+}
+
 function LecteurAudio(){
   const[texte,setTexte]=useState("");
   const[lecture,setLecture]=useState(false);
@@ -671,19 +707,24 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
       if(form.pin!==form.pin2){setErr("Les PIN ne correspondent pas.");setLoading(false);return;}
       const users=lsGet("vv_users")||{};
       if(users[form.tel]){setErr("Ce numéro est déjà inscrit.");setLoading(false);return;}
-      const result=useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
+      const result=await useActivationCode(form.code.trim(),{nom:form.nom,tel:form.tel});
       if(!result.ok){setErr(result.error);setLoading(false);return;}
-      const codeInfo=(getCodes()[form.code.trim()])||{};
-      const trialEnd=codeInfo.expireAt||null;
-      const user={id:Date.now(),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString(),trialEnd,isTrial:!!trialEnd};
+      const trialEnd=result.expireAt||null;
+      const user={id:String(Date.now()),nom:form.nom,tel:form.tel,email:form.email||"",plan:result.planId,subscribed:true,createdAt:new Date().toISOString(),trialEnd,isTrial:!!trialEnd};
+      try{await supabase.from("users").upsert({id:user.id,nom:user.nom,tel:user.tel,email:user.email,plan:user.plan,pin:form.pin,trial_end:trialEnd,is_trial:!!trialEnd,created_at:user.createdAt});}catch{}
       users[form.tel]=user;
       lsSet("vv_users",users);
-      const pins=lsGet("vv_pins")||{};
-      pins[form.tel]=form.pin;
-      lsSet("vv_pins",pins);
-      onAuth(user);
-    }else{
+      const pins=lsGet("vv_pins")||{};pins[form.tel]=form.pin;lsSet("vv_pins",pins);
+      onAuth(user);    }else{
       if(!form.tel||!form.pin){setErr("Entrez votre numéro et PIN.");setLoading(false);return;}
+      try{
+        const {data:sbUser}=await supabase.from("users").select("*").eq("tel",form.tel).single();
+        if(sbUser){
+          if(sbUser.pin!==form.pin){setErr("PIN incorrect.");setLoading(false);return;}
+          const user={id:sbUser.id,nom:sbUser.nom,tel:sbUser.tel,email:sbUser.email||"",plan:sbUser.plan,subscribed:true,createdAt:sbUser.created_at,trialEnd:sbUser.trial_end,isTrial:sbUser.is_trial};
+          onAuth(user);setLoading(false);return;
+        }
+      }catch{}
       const users=lsGet("vv_users")||{};
       const pins=lsGet("vv_pins")||{};
       const user=users[form.tel];
@@ -750,8 +791,8 @@ function AdminPanel({onClose}){
     if(pin===config.ADMIN_PIN){setAuth(true);setCodes(getCodes());}
     else alert("PIN incorrect");
   };
-  const generate=()=>{
-    const c=createCode(plan,note,trialDays);
+  const generate=async()=>{
+    const c=await createCodeSupabase(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
@@ -911,9 +952,11 @@ JSON pur seulement.
     <div style={{marginBottom:14,background:"#F0FDF4",borderRadius:10,padding:12,textAlign:"center"}}>
       <div style={{fontSize:11,color:C.muted,marginBottom:8}}>🎤 Parlez pour remplir automatiquement</div>
       <div style={{fontSize:10,color:C.muted,marginBottom:8,fontStyle:"italic"}}>"Reçu 50 savons bleus, achat 200 francs, vente 350 francs, seuil 10"</div>
-      <button onClick={demarrer} disabled={ecoute} style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-        {ecoute?"🔴 Écoute…":"🎤 Parler"}
-      </button>
+      <MicButton
+        onStart={demarrer} onStop={()=>window._stockRec?.stop()}
+        disabled={ecoute}
+        label={ecoute?"🔴 Écoute…":"🎤 Parler"}
+        style={{background:ecoute?C.mic:C.primary,border:"none",borderRadius:20,padding:"8px 20px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}/>
       {msg&&<div style={{marginTop:8,fontSize:12,color:C.primary,fontWeight:600}}>{msg}</div>}
     </div>
   );
@@ -1026,13 +1069,48 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[showManuel,setShowManuel]=useState(false);
   const[showParams,setShowParams]=useState(false);
   const recognRef=useRef(null);
+  const holdRef=useRef(null);
   const synth=useRef(window.speechSynthesis);
 
   const KEY_TX=`vv_tx_${user.id}`;
   const KEY_STK=`vv_stk_${user.id}`;
 
-  const saveTx=useCallback(l=>{ lsSet(KEY_TX,l); },[KEY_TX]);
-  const saveStk=useCallback(l=>{ lsSet(KEY_STK,l); },[KEY_STK]);
+  // Charger depuis Supabase au démarrage
+  useEffect(()=>{
+    const loadFromSupabase=async()=>{
+      try{
+        const {data:txData}=await supabase.from("transactions").select("*").eq("user_id",user.id).order("date",{ascending:false});
+        if(txData&&txData.length>0){
+          const tx=txData.map(t=>({id:t.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prixUnitaire:t.prix_unitaire,montant:t.montant,texteOriginal:t.texte_original,articleStock:t.article_stock}));
+          setTransactions(tx);lsSet(KEY_TX,tx);
+        }
+        const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
+        if(stkData&&stkData.length>0){
+          const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
+          setStock(stk);lsSet(KEY_STK,stk);
+        }
+      }catch(e){console.log("Supabase load error:",e);}
+    };
+    loadFromSupabase();
+  },[user.id]);
+
+  const saveTx=useCallback(async l=>{
+    lsSet(KEY_TX,l);
+    try{
+      if(l.length>0){
+        const t=l[0];
+        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
+      }
+    }catch{}
+  },[KEY_TX,user.id]);
+  const saveStk=useCallback(async l=>{
+    lsSet(KEY_STK,l);
+    try{
+      for(const a of l){
+        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil});
+      }
+    }catch{}
+  },[KEY_STK,user.id]);
   const parler=useCallback(t=>{
     synth.current?.cancel();
     const u=new SpeechSynthesisUtterance(t);
@@ -1080,7 +1158,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     recognRef.current=rec;
     rec.onstart=()=>setEtat("ecoute");
     rec.onerror=e=>{setEtat("erreur");setErreur("Erreur micro : "+e.error);};
-
+    rec.onspeechend=()=>{rec.stop();};
     rec.onresult=async e=>{
       const t=e.results[0][0].transcript;
       setTranscription(t); setEtat("analyse");
@@ -1157,7 +1235,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
-  const stockFiltré=stock.filter(a=>(triCategorie==="tous"||(a.categorie||"Général")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())||(a.categorie||"").toLowerCase().includes(searchStock.toLowerCase())):stock;
+  const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
   const trialExpired=trialEnd&&trialEnd<new Date();
   const trialDaysLeft=trialEnd&&!trialExpired?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):null;
@@ -1204,7 +1282,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
       try{
         const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:50,
-            messages:[{role:"user",content:`Donne la catégorie en 1 mot de cet article de commerce africain: "${newArt.nom.trim()}". Réponds UNIQUEMENT avec le mot catégorie (ex: Hygiène, Alimentation, Textile, Électronique, Boisson, Papeterie, etc.)`}]})});
+            messages:[{role:"user",content:`Classe cet article de commerce africain: "${newArt.nom.trim()}" dans UNE de ces catégories exactes: Hygiène, Alimentation, Boisson, Textile, Électronique, Cosmétique, Pharmacie, Papeterie, Quincaillerie, Jouet, Maraîchage, Bétail, Autre. Réponds UNIQUEMENT avec le nom de catégorie, rien d'autre.`}]})});
         const d=await r.json();
         categorie=d.content?.[0]?.text?.trim()||"Général";
       }catch{}
@@ -1277,14 +1355,18 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                   style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
                 {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
               </div>
-              <button onClick={()=>{
-                const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-                if(!SR) return;
-                const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
-                rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
-                rec.onspeechend=()=>rec.stop();
-                rec.start();
-              }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
+              <MicButton
+                onStart={()=>{
+                  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                  if(!SR) return;
+                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+                  window._searchRec=rec;
+                  rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
+                  rec.start();
+                }}
+                onStop={()=>window._searchRec?.stop()}
+                label="🎤"
+                style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}/>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
@@ -1323,8 +1405,14 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                 🗣 "Reçu 20 pagnes pour le stock"<br/>
                 🗣 "Dépensé 5 000 pour le transport"
               </div>
-              <button onClick={demarrer} style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.mic},#FF8E53)`,border:"none",cursor:"pointer",fontSize:32,boxShadow:"0 6px 20px rgba(220,38,38,.4)"}}>🎤</button>
-              <div style={{marginTop:10,fontSize:11,color:C.muted}}>Appuyez pour parler</div>
+              <button
+                onMouseDown={()=>{holdRef.current=setTimeout(()=>{holdRef.current="hold";},300);demarrer();}}
+                onMouseUp={()=>{if(holdRef.current==="hold")recognRef.current?.stop();clearTimeout(holdRef.current);holdRef.current=null;}}
+                onTouchStart={e=>{e.preventDefault();holdRef.current=setTimeout(()=>{holdRef.current="hold";},300);demarrer();}}
+                onTouchEnd={e=>{e.preventDefault();if(holdRef.current==="hold")recognRef.current?.stop();clearTimeout(holdRef.current);holdRef.current=null;}}
+                style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.mic},#FF8E53)`,border:"none",cursor:"pointer",fontSize:32,boxShadow:"0 6px 20px rgba(220,38,38,.4)",userSelect:"none",WebkitUserSelect:"none",touchAction:"none"}}>🎤</button>
+              <div style={{marginTop:10,fontSize:11,color:C.muted}}>Appui simple ou maintenez appuyé</div>
+              <div style={{fontSize:10,color:C.muted,marginTop:3}}>Relâchez pour arrêter · Appui court = auto</div>
               <button onClick={()=>setShowManuel(true)} style={{marginTop:14,background:"transparent",border:`1px solid ${C.border}`,borderRadius:20,padding:"6px 16px",color:C.muted,fontSize:11,cursor:"pointer"}}>✏️ Saisie manuelle</button>
             </>}
             {etat==="ecoute"&&<>
@@ -1422,7 +1510,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             <button onClick={()=>setOngletStock("mouvements")} style={{flex:1,padding:"8px",borderRadius:10,border:`1.5px solid ${ongletStock==="mouvements"?C.primaryMid:C.border}`,background:ongletStock==="mouvements"?C.primaryMid:"transparent",color:ongletStock==="mouvements"?"#FFF":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 Mouvements</button>
           </div>
           {ongletStock==="articles"&&<>
-          {ongletStock==="articles"&&stockFiltré.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
+          {ongletStock==="articles"&&stockFiltre.length===0&&searchStock&&<div style={{textAlign:"center",color:C.muted,padding:20,fontSize:13}}>Aucun article pour "{searchStock}"</div>}
           {showStockForm&&(
             <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
               <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>{editArt?"✏️ Modifier":"➕ Nouvel article"}</div>
@@ -1440,7 +1528,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
             </div>
           )}
           {stock.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>📦</div>Aucun article.</div>}
-          {stockFiltré.map(art=>{
+          {stockFiltre.map(art=>{
             const f=(art.quantite??0)<=(art.seuil??5);
             return(
               <div key={art.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${f?C.accent:C.primary}`}}>
