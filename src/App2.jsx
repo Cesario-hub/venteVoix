@@ -1099,7 +1099,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     try{
       if(l.length>0){
         const t=l[0];
-        await supabase.from("transactions").insert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
+        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
       }
     }catch{}
   },[KEY_TX,user.id]);
@@ -1107,7 +1107,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
     lsSet(KEY_STK,l);
     try{
       for(const a of l){
-        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil},{onConflict:"id"});
+        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil});
       }
     }catch{}
   },[KEY_STK,user.id]);
