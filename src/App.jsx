@@ -792,7 +792,7 @@ function AdminPanel({onClose}){
     else alert("PIN incorrect");
   };
   const generate=async()=>{
-    const c=await createCodeSupabase(plan,note,trialDays);
+    const c=await createCode(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
