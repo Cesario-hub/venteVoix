@@ -979,7 +979,7 @@ JSON pur seulement.
 
 
 function SaisieManuelle({onValider,onClose}){
-  const[form,setForm]=useState({type:"vente",description:"",quantite:"",prixUnitaire:"",montant:"",modePaiement:"cash",nomClient:"",telClient:"",echeance:""});
+  const[form,setForm]=useState({type:"vente",description:"",quantite:"",prixUnitaire:"",montant:""});
   const set=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
   const calcMontant=()=>{
     const q=parseFloat(form.quantite)||0;
@@ -996,12 +996,7 @@ function SaisieManuelle({onValider,onClose}){
       prixUnitaire:form.prixUnitaire?parseFloat(form.prixUnitaire):null,
       montantTotal:montant,
       articleStock:null,
-      modePaiement:form.modePaiement,
-      nomClient:form.nomClient,
-      telClient:form.telClient,
-      echeance:form.echeance,
-      estEncaisse:form.modePaiement!=="credit"&&form.modePaiement!=="cheque",
-      confirmation:`${form.type==="vente"?"Vente":"Dépense"} de ${form.description} pour ${new Intl.NumberFormat("fr-FR").format(montant)} francs (${form.modePaiement}).`
+      confirmation:`${form.type==="vente"?"Vente":"Dépense"} de ${form.description} pour ${new Intl.NumberFormat("fr-FR").format(montant)} francs.`
     });
   };
   return(
@@ -1012,32 +1007,6 @@ function SaisieManuelle({onValider,onClose}){
           <button key={v} onClick={()=>setForm(p=>({...p,type:v}))} style={{flex:1,padding:"8px 4px",borderRadius:8,border:`2px solid ${form.type===v?C.primary:C.border}`,background:form.type===v?C.primary:"transparent",color:form.type===v?"#FFF":C.muted,fontWeight:700,fontSize:11,cursor:"pointer"}}>{l}</button>
         ))}
       </div>
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:600}}>Mode de paiement</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {[["cash","💵 Cash"],["mobile","📱 Mobile Money"],["credit","📝 Crédit"],["cheque","🏦 Chèque"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setForm(p=>({...p,modePaiement:v}))} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${form.modePaiement===v?C.primary:C.border}`,background:form.modePaiement===v?C.primary:"transparent",color:form.modePaiement===v?"#FFF":C.muted,fontSize:11,fontWeight:form.modePaiement===v?700:400,cursor:"pointer"}}>{l}</button>
-          ))}
-        </div>
-      </div>
-      {(form.modePaiement==="credit"||form.modePaiement==="cheque")&&(
-        <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-          <div style={{display:"flex",gap:8,marginBottom:8}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Nom client *</div>
-              <input type="text" placeholder="ex: Kouassi Jean" value={form.nomClient} onChange={e=>setForm(p=>({...p,nomClient:e.target.value}))} style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-            </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Téléphone</div>
-              <input type="tel" placeholder="+225 07..." value={form.telClient} onChange={e=>setForm(p=>({...p,telClient:e.target.value}))} style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-            </div>
-          </div>
-          {form.modePaiement==="credit"&&<div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Date d'échéance</div>
-            <input type="date" value={form.echeance} onChange={e=>setForm(p=>({...p,echeance:e.target.value}))} style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-          </div>}
-        </div>
-      )}
       {[["Description *","description","text","ex: Savons bleus"],["Quantité","quantite","number","ex: 5"],["Prix unitaire (F)","prixUnitaire","number","ex: 300"],["Montant total (F) *","montant","number","ex: 1500"]].map(([l,k,t,ph])=>(
         <div key={k} style={{marginBottom:10}}>
           <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
@@ -1239,12 +1208,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
       type:interpretation.type, description:interpretation.description??"—",
       quantite:interpretation.quantite, prixUnitaire:interpretation.prixUnitaire,
       montant:interpretation.montantTotal??0, texteOriginal:transcription,
-      modePaiement:interpretation.modePaiement||"cash",
-      nomClient:interpretation.nomClient||"",
-      telClient:interpretation.telClient||"",
-      echeance:interpretation.echeance||"",
-      estEncaisse:interpretation.estEncaisse!==false,
-      articleStock:interpretation.articleStock,
     };
     const nl=[tx,...transactions];
     setTransactions(nl); saveTx(nl);
@@ -1379,7 +1342,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
       {/* Onglets */}
       <div style={{display:"flex",background:C.surface,borderBottom:`1px solid ${C.border}`}}>
-        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"]].filter(Boolean).map(([k,icon])=>(
+        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"]].filter(Boolean).map(([k,icon])=>(
           <button key={k} onClick={()=>setOnglet(k)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",background:onglet===k?C.bg:C.surface,fontWeight:onglet===k?700:400,color:onglet===k?C.primary:C.muted,borderBottom:onglet===k?`3px solid ${C.primary}`:"3px solid transparent",fontSize:12}}>
             {icon} {k.charAt(0).toUpperCase()+k.slice(1)}
           </button>
@@ -1505,93 +1468,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         </>}
 
         {/* HISTORIQUE */}
-        {onglet==="recouvrement"&&(()=>{
-          const config=getConfig();
-          const credits=transactions.filter(t=>t.modePaiement==="credit"&&t.type==="vente");
-          const cheques=transactions.filter(t=>t.modePaiement==="cheque"&&t.type==="vente");
-          const totalCredit=credits.reduce((s,t)=>s+t.montant,0);
-          const totalCheque=cheques.reduce((s,t)=>s+t.montant,0);
-          const envoiRelance=(t)=>{
-            const msg=encodeURIComponent(`Bonjour ${t.nomClient||"Client"} !
-
-Vous avez un crédit de *${new Intl.NumberFormat("fr-FR").format(t.montant)} F* dû le ${t.echeance?new Date(t.echeance).toLocaleDateString("fr-FR"):"bientôt"}.
-
-Remboursez facilement par Wave :
-${config.WAVE_NUMBER}
-
-Ou Orange Money :
-${config.ORANGE_NUMBER}
-
-Merci 🙏`);
-            window.open(`https://wa.me/${t.telClient?.replace(/[^0-9]/g,"")}?text=${msg}`,"_blank");
-          };
-          return(
-            <div>
-              <div style={{display:"flex",gap:8,marginBottom:14}}>
-                <div style={{flex:1,background:"#FEF3C7",borderRadius:12,padding:"12px",textAlign:"center"}}>
-                  <div style={{fontSize:10,color:"#92400E",fontWeight:700,marginBottom:2}}>📝 CRÉDIT DÛ</div>
-                  <div style={{fontSize:20,fontWeight:800,color:"#B45309"}}>{new Intl.NumberFormat("fr-FR").format(totalCredit)} F</div>
-                  <div style={{fontSize:10,color:"#92400E"}}>{credits.length} client{credits.length>1?"s":""}</div>
-                </div>
-                <div style={{flex:1,background:"#EFF6FF",borderRadius:12,padding:"12px",textAlign:"center"}}>
-                  <div style={{fontSize:10,color:"#1D4ED8",fontWeight:700,marginBottom:2}}>🏦 CHÈQUES</div>
-                  <div style={{fontSize:20,fontWeight:800,color:"#1D4ED8"}}>{new Intl.NumberFormat("fr-FR").format(totalCheque)} F</div>
-                  <div style={{fontSize:10,color:"#1D4ED8"}}>{cheques.length} chèque{cheques.length>1?"s":""}</div>
-                </div>
-              </div>
-
-              {credits.length>0&&<>
-                <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10}}>📝 Crédits en cours</div>
-                {credits.map(t=>{
-                  const retard=t.echeance&&new Date(t.echeance)<new Date();
-                  return(
-                    <div key={t.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,borderLeft:`4px solid ${retard?"#B91C1C":"#F59E0B"}`}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                        <div>
-                          <div style={{fontWeight:700,fontSize:14}}>{t.nomClient||"Client inconnu"}</div>
-                          <div style={{fontSize:12,color:C.muted}}>{t.description}</div>
-                          <div style={{fontSize:11,color:C.muted}}>{new Date(t.date).toLocaleDateString("fr-FR")}{t.echeance?` → dû le ${new Date(t.echeance).toLocaleDateString("fr-FR")}`:""}</div>
-                          {retard&&<div style={{fontSize:11,color:"#B91C1C",fontWeight:700}}>⚠️ En retard !</div>}
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{fontWeight:800,fontSize:16,color:"#B45309"}}>{new Intl.NumberFormat("fr-FR").format(t.montant)} F</div>
-                          {t.telClient&&<button onClick={()=>envoiRelance(t)} style={{marginTop:6,background:"#25D366",border:"none",borderRadius:8,padding:"5px 10px",color:"#FFF",fontSize:11,cursor:"pointer",fontWeight:700}}>📲 Relance</button>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>}
-
-              {cheques.length>0&&<>
-                <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:10,marginTop:14}}>🏦 Chèques</div>
-                {cheques.map(t=>(
-                  <div key={t.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,borderLeft:"4px solid #1D4ED8"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div>
-                        <div style={{fontWeight:700,fontSize:13}}>{t.nomClient||"Client"}</div>
-                        <div style={{fontSize:12,color:C.muted}}>{t.description}</div>
-                        <div style={{fontSize:11,color:C.muted}}>{new Date(t.date).toLocaleDateString("fr-FR")}</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:800,fontSize:15,color:"#1D4ED8"}}>{new Intl.NumberFormat("fr-FR").format(t.montant)} F</div>
-                        <div style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:t.estEncaisse?"#D1FAE5":"#FEE2E2",color:t.estEncaisse?C.primary:"#B91C1C",fontWeight:700,marginTop:4}}>{t.estEncaisse?"✅ Encaissé":"⏳ En attente"}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>}
-
-              {credits.length===0&&cheques.length===0&&(
-                <div style={{textAlign:"center",color:C.muted,padding:40}}>
-                  <div style={{fontSize:36,marginBottom:10}}>💰</div>
-                  <div>Aucun crédit ni chèque en cours</div>
-                  <div style={{fontSize:11,marginTop:8}}>Utilisez la saisie manuelle pour enregistrer une vente à crédit</div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
         {onglet==="historique"&&<>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontWeight:700,fontSize:15}}>Transactions ({transactions.length})</div>
