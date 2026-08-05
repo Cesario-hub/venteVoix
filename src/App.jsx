@@ -1951,4 +1951,5 @@ export default function Root(){
     features:["Tout Pro inclus","1 Module secteur au choix","Maquis · Transport · Beauté · Tailleur...","5 utilisateurs","Support prioritaire"]},
   {id:"ecole",name:"École",price:"20 000",xof:20000,color:"#7C3AED",badge:"🏫 Rentrée",
     features:["Tout Business inclus","Gestion élèves complète","Recouvrement scolarité automatique","Rappels WhatsApp parents","Tableau de bord directeur","Utilisateurs illimités"]},
-];mport { useState, useEffect, useRef, useCallback } from "react";
+];
+import { useState, useEffect, useRef, useCallback } from " react\;
