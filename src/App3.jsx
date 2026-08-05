@@ -689,7 +689,7 @@ function PaymentPage({planId,onHaveCode,onBack}){
               </div>
             )}
           </div>
-        )}}
+        )}
         <a href={`https://wa.me/${config.WHATSAPP_NUMBER}?text=${msg}`} target="_blank" rel="noopener noreferrer"
           style={{display:"block",width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#25D366",color:"#FFF",fontWeight:800,fontSize:14,cursor:"pointer",textAlign:"center",textDecoration:"none",marginBottom:10,boxSizing:"border-box"}}>
           📲 J'ai payé — Envoyer la preuve sur WhatsApp
@@ -1038,21 +1038,7 @@ function SaisieManuelle({onValider,onClose}){
           </div>}
         </div>
       )}
-      {form.type==="vente"&&[["Description *","description","text","ex: Savons bleus"],["Quantité","quantite","number","ex: 5"],["Prix unitaire (F)","prixUnitaire","number","ex: 300"],["Montant total (F) *","montant","number","ex: 1500"]].map(([l,k,t,ph])=>(
-        <div key={k} style={{marginBottom:10}}>
-          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
-          <input type={t} placeholder={ph} value={form[k]} onChange={set(k)} onBlur={k==="prixUnitaire"||k==="quantite"?calcMontant:undefined}
-            style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-        </div>
-      ))}
-      {form.type==="depense"&&[["Description *","description","text","ex: Transport, loyer, nourriture..."],["Montant (F) *","montant","number","ex: 5000"]].map(([l,k,t,ph])=>(
-        <div key={k} style={{marginBottom:10}}>
-          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
-          <input type={t} placeholder={ph} value={form[k]} onChange={set(k)}
-            style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-        </div>
-      ))}
-      {form.type==="stock_entree"&&[["Nom article *","description","text","ex: Savon bleu Lux"],["Quantité reçue","quantite","number","ex: 50"],["Prix achat unitaire (F)","prixUnitaire","number","ex: 200"],["Montant total achat (F)","montant","number","ex: 10000"]].map(([l,k,t,ph])=>(
+      {[["Description *","description","text","ex: Savons bleus"],["Quantité","quantite","number","ex: 5"],["Prix unitaire (F)","prixUnitaire","number","ex: 300"],["Montant total (F) *","montant","number","ex: 1500"]].map(([l,k,t,ph])=>(
         <div key={k} style={{marginBottom:10}}>
           <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
           <input type={t} placeholder={ph} value={form[k]} onChange={set(k)} onBlur={k==="prixUnitaire"||k==="quantite"?calcMontant:undefined}
