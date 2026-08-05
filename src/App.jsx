@@ -40,7 +40,7 @@ const PLANS = [
     features:["Enregistrement vocal illimité","Tableau de bord","Rapport audio journalier","Export Excel","1 utilisateur"] },
   { id:"pro", name:"Pro", price:"5 000", xof:5000, color:C.primary, badge:"⭐ Populaire",
     features:["Tout Démarrage inclus","Gestion de stock","Export PDF","Rapports toutes périodes","WhatsApp automatique","3 utilisateurs"] },
-  { i  {id:"business", name:"Business", price:"12 000", xof:12000, color:C.accent, badge:"🏆 Complet",
+  {id:"business", name:"Business", price:"12 000", xof:12000, color:C.accent, badge:"🏆 Complet",
     features:["Tout Pro inclus","1 Module secteur au choix","5 utilisateurs","Support prioritaire"] },
   {id:"ecole", name:"École", price:"20 000", xof:20000, color:"#7C3AED", badge:"🏫 Rentrée",
     features:["Tout Business inclus","Gestion élèves","Recouvrement scolarité","Rappels WhatsApp parents","Utilisateurs illimités"] },
