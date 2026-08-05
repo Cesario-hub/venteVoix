@@ -1523,6 +1523,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         </>}
 
         {/* HISTORIQUE */}
+        {onglet==="ecole"&&<ModuleEcole user={user} config={config}/>}
         {onglet==="recouvrement"&&(()=>{
           const config=getConfig();
           const credits=transactions.filter(t=>t.modePaiement==="credit"&&t.type==="vente");
