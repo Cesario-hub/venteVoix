@@ -43,6 +43,8 @@ const PLANS = [
     features:["Tout Démarrage inclus","Gestion de stock","Export PDF","Rapports toutes périodes","WhatsApp automatique","3 utilisateurs"] },
   { id:"business", name:"Business", price:"12 000", xof:12000, color:C.accent, badge:"🏆 Complet",
     features:["Tout Pro inclus","Multi-boutiques","Rapport mensuel","Utilisateurs illimités","Support prioritaire"] },
+  { id:"ecole", name:"École", price:"20 000", xof:20000, color:"#7C3AED", badge:"🏫 Rentrée",
+    features:["Tout Business inclus","Gestion élèves complète","Recouvrement scolarité automatique","Rappels WhatsApp parents","Utilisateurs illimités"] },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
