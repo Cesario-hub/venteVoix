@@ -40,10 +40,8 @@ const PLANS = [
     features:["Enregistrement vocal illimité","Tableau de bord","Rapport audio journalier","Export Excel","1 utilisateur"] },
   { id:"pro", name:"Pro", price:"5 000", xof:5000, color:C.primary, badge:"⭐ Populaire",
     features:["Tout Démarrage inclus","Gestion de stock","Export PDF","Rapports toutes périodes","WhatsApp automatique","3 utilisateurs"] },
-  {id:"business", name:"Business", price:"12 000", xof:12000, color:C.accent, badge:"🏆 Complet",
-    features:["Tout Pro inclus","1 Module secteur au choix","5 utilisateurs","Support prioritaire"] },
-  {id:"ecole", name:"École", price:"20 000", xof:20000, color:"#7C3AED", badge:"🏫 Rentrée",
-    features:["Tout Business inclus","Gestion élèves","Recouvrement scolarité","Rappels WhatsApp parents","Utilisateurs illimités"] },
+  { id:"business", name:"Business", price:"12 000", xof:12000, color:C.accent, badge:"🏆 Complet",
+    features:["Tout Pro inclus","Multi-boutiques","Rapport mensuel","Utilisateurs illimités","Support prioritaire"] },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -691,7 +689,7 @@ function PaymentPage({planId,onHaveCode,onBack}){
               </div>
             )}
           </div>
-        )}
+        )}}
         <a href={`https://wa.me/${config.WHATSAPP_NUMBER}?text=${msg}`} target="_blank" rel="noopener noreferrer"
           style={{display:"block",width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#25D366",color:"#FFF",fontWeight:800,fontSize:14,cursor:"pointer",textAlign:"center",textDecoration:"none",marginBottom:10,boxSizing:"border-box"}}>
           📲 J'ai payé — Envoyer la preuve sur WhatsApp
@@ -1462,7 +1460,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
-  const canEcole=["ecole"].includes(plan?.id);
+  const canEcole=["business","ecole"].includes(plan?.id)||true; // Disponible pour tous pour test
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
   const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
@@ -1556,7 +1554,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
       {/* Onglets */}
       <div style={{display:"flex",background:C.surface,borderBottom:`1px solid ${C.border}`}}>
-        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"],canEcole&&["ecole","🏫"]].filter(Boolean).map(([k,icon])=>(
+        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"],["ecole","🏫"]].filter(Boolean).map(([k,icon])=>(
           <button key={k} onClick={()=>setOnglet(k)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",background:onglet===k?C.bg:C.surface,fontWeight:onglet===k?700:400,color:onglet===k?C.primary:C.muted,borderBottom:onglet===k?`3px solid ${C.primary}`:"3px solid transparent",fontSize:12}}>
             {icon} {k.charAt(0).toUpperCase()+k.slice(1)}
           </button>
@@ -1942,14 +1940,4 @@ export default function Root(){
   if(screen==="auth_login")  return<AuthPage mode="login"  onAuth={onAuth} onBack={()=>setScreen("landing")} onNeedPayment={()=>setScreen("payment")}/>;
   if(screen==="app"&&currentUser) return<AppVenteVoix user={currentUser} plan={planObj} onLogout={onLogout} onAdmin={()=>setShowAdmin(true)}/>;
   return null;
-}const PLANS=[
-  {id:"starter",name:"Démarrage",price:"2 000",xof:2000,color:C.primaryLight,badge:null,
-    features:["Enregistrement vocal illimité","Tableau de bord","Rapport audio journalier","Export Excel","1 utilisateur"]},
-  {id:"pro",name:"Pro",price:"5 000",xof:5000,color:C.primary,badge:"⭐ Populaire",
-    features:["Tout Démarrage inclus","Gestion de stock","Recouvrement crédit","Export PDF","Rapports toutes périodes","WhatsApp automatique","3 utilisateurs"]},
-  {id:"business",name:"Business",price:"12 000",xof:12000,color:C.accent,badge:"🏆 Complet",
-    features:["Tout Pro inclus","1 Module secteur au choix","Maquis · Transport · Beauté · Tailleur...","5 utilisateurs","Support prioritaire"]},
-  {id:"ecole",name:"École",price:"20 000",xof:20000,color:"#7C3AED",badge:"🏫 Rentrée",
-    features:["Tout Business inclus","Gestion élèves complète","Recouvrement scolarité automatique","Rappels WhatsApp parents","Tableau de bord directeur","Utilisateurs illimités"]},
-];
-import { useState, useEffect, useRef, useCallback } from " react\;
+}
