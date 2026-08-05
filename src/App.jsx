@@ -1107,166 +1107,6 @@ function importerDonnees(file,user,setTransactions,setStock,saveTx,saveStk,parle
   reader.readAsText(file);
 }
 
-
-// ══════════════════════════════════════════════════════════════════════════════
-// MODULE ÉCOLE — Gestion élèves et recouvrement scolarité
-// ══════════════════════════════════════════════════════════════════════════════
-function ModuleEcole({user,config}){
-  const KEY_ELEVES="vv_eleves_"+user.id;
-  const[eleves,setEleves]=useState(()=>lsGet(KEY_ELEVES)||[]);
-  const[showForm,setShowForm]=useState(false);
-  const[editEleve,setEditEleve]=useState(null);
-  const[filtre,setFiltre]=useState("tous");
-  const[form,setForm]=useState({nom:"",classe:"",nomParent:"",telParent:"",montantTotal:"",montantPaye:"0",echeance:""});
-  const set=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
-
-  const saveEleves=l=>{setEleves(l);lsSet(KEY_ELEVES,l);};
-
-  const ajouterEleve=()=>{
-    if(!form.nom.trim()||!form.montantTotal) return;
-    if(editEleve){
-      const ns=eleves.map(e=>e.id===editEleve.id?{...e,...form,montantTotal:parseFloat(form.montantTotal)||0,montantPaye:parseFloat(form.montantPaye)||0}:e);
-      saveEleves(ns);setEditEleve(null);
-    }else{
-      const e={id:Date.now(),nom:form.nom.trim(),classe:form.classe,nomParent:form.nomParent,telParent:form.telParent,montantTotal:parseFloat(form.montantTotal)||0,montantPaye:parseFloat(form.montantPaye)||0,echeance:form.echeance,createdAt:new Date().toISOString()};
-      saveEleves([...eleves,e]);
-    }
-    setForm({nom:"",classe:"",nomParent:"",telParent:"",montantTotal:"",montantPaye:"0",echeance:""});
-    setShowForm(false);
-  };
-
-  const marquerPaye=(id,montant)=>{
-    const ns=eleves.map(e=>e.id===id?{...e,montantPaye:Math.min(e.montantTotal,e.montantPaye+montant)}:e);
-    saveEleves(ns);
-  };
-
-  const supprimerEleve=id=>{if(confirm("Supprimer cet élève ?"))saveEleves(eleves.filter(e=>e.id!==id));};
-
-  const envoierRappel=(e)=>{
-    const restant=e.montantTotal-e.montantPaye;
-    const msg=encodeURIComponent(`Bonjour ${e.nomParent} !
-
-📚 Scolarité de *${e.nom}* - ${e.classe}
-
-💰 Montant total : *${fmtN(e.montantTotal)} F*
-✅ Déjà payé : *${fmtN(e.montantPaye)} F*
-⚠️ Reste à payer : *${fmtN(restant)} F*${e.echeance?`
-📅 Échéance : ${new Date(e.echeance).toLocaleDateString("fr-FR")}`:""}
-
-Payez facilement :
-📱 Wave : ${config.WAVE_NUMBER}
-📱 Orange : ${config.ORANGE_NUMBER}
-
-Après paiement, envoyez la preuve à ce numéro.
-
-Merci 🙏`);
-    window.open(`https://wa.me/${e.telParent.replace(/\D/g,"")}?text=${msg}`,"_blank");
-  };
-
-  const elevesFiltres=eleves.filter(e=>{
-    const restant=e.montantTotal-e.montantPaye;
-    if(filtre==="payes") return restant<=0;
-    if(filtre==="attente") return restant>0&&(!e.echeance||new Date(e.echeance)>=new Date());
-    if(filtre==="retard") return restant>0&&e.echeance&&new Date(e.echeance)<new Date();
-    return true;
-  });
-
-  const totalAttendu=eleves.reduce((s,e)=>s+e.montantTotal,0);
-  const totalEncaisse=eleves.reduce((s,e)=>s+e.montantPaye,0);
-  const totalRestant=totalAttendu-totalEncaisse;
-  const nPayes=eleves.filter(e=>e.montantTotal-e.montantPaye<=0).length;
-  const nRetard=eleves.filter(e=>(e.montantTotal-e.montantPaye)>0&&e.echeance&&new Date(e.echeance)<new Date()).length;
-
-  return(
-    <div style={{padding:"14px 14px 100px"}}>
-      {/* Stats */}
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <StatCard label="Total attendu" value={fmt(totalAttendu)} color={C.primary} sub={`${eleves.length} élèves`}/>
-        <StatCard label="Encaissé" value={fmt(totalEncaisse)} color="#10B981" sub={`${nPayes} payés`}/>
-      </div>
-      <div style={{marginBottom:14}}>
-        <StatCard label="Reste à recouvrer" value={fmt(totalRestant)} color={totalRestant>0?C.danger:C.primary} sub={nRetard>0?`⚠️ ${nRetard} en retard`:""}/>
-      </div>
-
-      {/* Bouton envoyer rappels en masse */}
-      {eleves.filter(e=>e.montantTotal-e.montantPaye>0).length>0&&(
-        <button onClick={()=>eleves.filter(e=>e.montantTotal-e.montantPaye>0).forEach(e=>setTimeout(()=>envoierRappel(e),500))}
-          style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"#25D366",color:"#FFF",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:14}}>
-          📲 Envoyer rappels WhatsApp à tous les impayés ({eleves.filter(e=>e.montantTotal-e.montantPaye>0).length})
-        </button>
-      )}
-
-      {/* Filtres */}
-      <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
-        {[["tous","🗂 Tous"],["payes","✅ Payés"],["attente","⏳ En attente"],["retard","⚠️ En retard"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setFiltre(v)} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${filtre===v?C.primary:C.border}`,background:filtre===v?C.primary:"transparent",color:filtre===v?"#FFF":C.muted,fontSize:11,fontWeight:filtre===v?700:400,cursor:"pointer"}}>{l}</button>
-        ))}
-      </div>
-
-      {/* Ajouter élève */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div style={{fontWeight:700,fontSize:15}}>Élèves ({eleves.length})</div>
-        <button onClick={()=>{setShowForm(!showForm);setEditEleve(null);setForm({nom:"",classe:"",nomParent:"",telParent:"",montantTotal:"",montantPaye:"0",echeance:""});}} style={{background:C.primary,border:"none",borderRadius:10,padding:"7px 14px",color:"#FFF",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Ajouter</button>
-      </div>
-
-      {/* Formulaire ajout/modif */}
-      {showForm&&(
-        <div style={{background:C.surface,borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 4px 14px rgba(0,0,0,.08)"}}>
-          <div style={{fontWeight:700,fontSize:14,color:C.primary,marginBottom:12}}>{editEleve?"✏️ Modifier élève":"➕ Nouvel élève"}</div>
-          {[["Nom élève *","nom","text","ex: Awa Kouassi"],["Classe *","classe","text","ex: CE2, 3ème..."],["Nom parent *","nomParent","text","ex: M. Kouassi Jean"],["Téléphone parent *","telParent","tel","ex: +225 07 XX XX XX"],["Frais total (F) *","montantTotal","number","ex: 150000"],["Déjà payé (F)","montantPaye","number","ex: 50000"],["Date échéance","echeance","date",""]].map(([l,k,t,ph])=>(
-            <div key={k} style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:600}}>{l}</div>
-              <input type={t} placeholder={ph} value={form[k]} onChange={set(k)}
-                style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
-            </div>
-          ))}
-          <div style={{display:"flex",gap:8,marginTop:8}}>
-            <button onClick={()=>{setShowForm(false);setEditEleve(null);}} style={btnS("#F3F4F6",C.muted)}>Annuler</button>
-            <button onClick={ajouterEleve} style={btnS(C.primary,"#FFF")}>{editEleve?"✓ Modifier":"✓ Ajouter"}</button>
-          </div>
-        </div>
-      )}
-
-      {/* Liste élèves */}
-      {elevesFiltres.length===0&&<div style={{textAlign:"center",color:C.muted,padding:40}}><div style={{fontSize:36,marginBottom:10}}>🎒</div>Aucun élève.</div>}
-      {elevesFiltres.map(e=>{
-        const restant=e.montantTotal-e.montantPaye;
-        const pct=Math.min(100,Math.round((e.montantPaye/e.montantTotal)*100));
-        const enRetard=restant>0&&e.echeance&&new Date(e.echeance)<new Date();
-        const statusColor=restant<=0?"#10B981":enRetard?C.danger:C.accent;
-        const statusLabel=restant<=0?"✅ Payé":enRetard?"⚠️ En retard":"⏳ En attente";
-        return(
-          <div key={e.id} style={{background:C.surface,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${statusColor}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:14}}>{e.nom}</div>
-                <div style={{fontSize:11,color:C.muted}}>{e.classe} · Parent : {e.nomParent}</div>
-                {e.echeance&&<div style={{fontSize:10,color:enRetard?C.danger:C.muted}}>Échéance : {new Date(e.echeance).toLocaleDateString("fr-FR")}</div>}
-              </div>
-              <span style={{background:statusColor+"20",color:statusColor,fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:20}}>{statusLabel}</span>
-            </div>
-            {/* Barre progression */}
-            <div style={{background:"#F3F4F6",borderRadius:20,height:6,marginBottom:8}}>
-              <div style={{background:statusColor,borderRadius:20,height:6,width:pct+"%",transition:"width .3s"}}/>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:10}}>
-              <span>Payé : <strong style={{color:"#10B981"}}>{fmt(e.montantPaye)}</strong></span>
-              <span>{pct}%</span>
-              <span>Reste : <strong style={{color:restant>0?C.danger:"#10B981"}}>{fmt(restant)}</strong></span>
-            </div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {restant>0&&<button onClick={()=>envoierRappel(e)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",background:"#25D366",color:"#FFF",fontWeight:600,fontSize:11,cursor:"pointer"}}>📲 Rappel WhatsApp</button>}
-              {restant>0&&<button onClick={()=>{const m=parseFloat(prompt("Montant reçu (F) :"));if(m&&m>0)marquerPaye(e.id,m);}} style={{flex:1,padding:"7px",borderRadius:8,border:"none",background:C.primary,color:"#FFF",fontWeight:600,fontSize:11,cursor:"pointer"}}>💰 Enregistrer paiement</button>}
-              <button onClick={()=>{setEditEleve(e);setForm({nom:e.nom,classe:e.classe,nomParent:e.nomParent,telParent:e.telParent,montantTotal:String(e.montantTotal),montantPaye:String(e.montantPaye),echeance:e.echeance||""});setShowForm(true);}} style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"none",color:C.muted,fontSize:13,cursor:"pointer"}}>✏️</button>
-              <button onClick={()=>supprimerEleve(e.id)} style={{padding:"7px 10px",borderRadius:8,border:"none",background:"none",color:C.muted,fontSize:13,cursor:"pointer"}}>🗑</button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const[transactions,setTransactions]=useState(()=>lsGet(`vv_tx_${user.id}`)||[]);
   const[stock,setStock]=useState(()=>lsGet(`vv_stk_${user.id}`)||[]);
@@ -1460,7 +1300,6 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
-  const canEcole=["business","ecole"].includes(plan?.id)||true; // Disponible pour tous pour test
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
   const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
@@ -1554,7 +1393,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
       {/* Onglets */}
       <div style={{display:"flex",background:C.surface,borderBottom:`1px solid ${C.border}`}}>
-        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"],["ecole","🏫"]].filter(Boolean).map(([k,icon])=>(
+        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"]].filter(Boolean).map(([k,icon])=>(
           <button key={k} onClick={()=>setOnglet(k)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",background:onglet===k?C.bg:C.surface,fontWeight:onglet===k?700:400,color:onglet===k?C.primary:C.muted,borderBottom:onglet===k?`3px solid ${C.primary}`:"3px solid transparent",fontSize:12}}>
             {icon} {k.charAt(0).toUpperCase()+k.slice(1)}
           </button>
@@ -1901,8 +1740,7 @@ Merci 🙏`);
             );
           })()}
         </>}
-            {onglet==="ecole"&&<ModuleEcole user={user} config={config}/>}
-</div>
+      </div>
       <style>{`input:focus{border-color:#1B4332!important;box-shadow:0 0 0 3px rgba(27,67,50,.12);}button:active{opacity:.85;transform:scale(.97);}`}</style>
     </div>
   );
