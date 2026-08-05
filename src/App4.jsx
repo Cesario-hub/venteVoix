@@ -689,7 +689,7 @@ function PaymentPage({planId,onHaveCode,onBack}){
               </div>
             )}
           </div>
-        )}}
+        )}
         <a href={`https://wa.me/${config.WHATSAPP_NUMBER}?text=${msg}`} target="_blank" rel="noopener noreferrer"
           style={{display:"block",width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#25D366",color:"#FFF",fontWeight:800,fontSize:14,cursor:"pointer",textAlign:"center",textDecoration:"none",marginBottom:10,boxSizing:"border-box"}}>
           📲 J'ai payé — Envoyer la preuve sur WhatsApp
@@ -1015,7 +1015,7 @@ function SaisieManuelle({onValider,onClose}){
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:600}}>Mode de paiement</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {form.type!=="stock_entree"&&[["cash","💵 Cash"],["mobile","📱 Mobile Money"],["credit","📝 Crédit"],["cheque","🏦 Chèque"]].map(([v,l])=>(
+          {[["cash","💵 Cash"],["mobile","📱 Mobile Money"],["credit","📝 Crédit"],["cheque","🏦 Chèque"]].map(([v,l])=>(
             <button key={v} onClick={()=>setForm(p=>({...p,modePaiement:v}))} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${form.modePaiement===v?C.primary:C.border}`,background:form.modePaiement===v?C.primary:"transparent",color:form.modePaiement===v?"#FFF":C.muted,fontSize:11,fontWeight:form.modePaiement===v?700:400,cursor:"pointer"}}>{l}</button>
           ))}
         </div>
