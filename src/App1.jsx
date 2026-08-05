@@ -792,7 +792,7 @@ function AdminPanel({onClose}){
     else alert("PIN incorrect");
   };
   const generate=async()=>{
-    const c=await createCodeSupabase(plan,note,trialDays);
+    const c=await createCode(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
@@ -1087,29 +1087,31 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
         if(stkData&&stkData.length>0){
           const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
-          setStock(stk);lsSet(KEY_STK,stk);
+          setStock(stk);lsSet(KEY_STK,stk);  // skipSupabase handled by direct lsSet  // skipSupabase handled by direct lsSet
         }
       }catch(e){console.log("Supabase load error:",e);}
     };
     loadFromSupabase();
   },[user.id]);
 
-  const saveTx=useCallback(async l=>{
+  const saveTx=useCallback(async (l,skipSupabase=false)=>{
     lsSet(KEY_TX,l);
+    if(skipSupabase) return;
     try{
       if(l.length>0){
         const t=l[0];
-        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
+        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock},{onConflict:"id"});
       }
-    }catch{}
+    }catch(e){console.log("saveTx error:",e);}
   },[KEY_TX,user.id]);
-  const saveStk=useCallback(async l=>{
+  const saveStk=useCallback(async (l,skipSupabase=false)=>{
     lsSet(KEY_STK,l);
+    if(skipSupabase) return;
     try{
       for(const a of l){
-        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil});
+        await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil},{onConflict:"id"});
       }
-    }catch{}
+    }catch(e){console.log("saveStk error:",e);}
   },[KEY_STK,user.id]);
   const parler=useCallback(t=>{
     synth.current?.cancel();
@@ -1355,18 +1357,14 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                   style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
                 {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
               </div>
-              <MicButton
-                onStart={()=>{
+              <button onClick={()=>{
                   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
                   if(!SR) return;
-                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
-                  window._searchRec=rec;
-                  rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
+                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
+                  rec.onresult=e=>{setSearchAccueil(e.results[0][0].transcript);};
+                  rec.onerror=()=>{};
                   rec.start();
-                }}
-                onStop={()=>window._searchRec?.stop()}
-                label="🎤"
-                style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}/>
+                }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));

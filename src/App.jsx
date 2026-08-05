@@ -660,21 +660,36 @@ function PaymentPage({planId,onHaveCode,onBack}){
         ))}
         {method&&(
           <div style={{background:C.surface,borderRadius:14,padding:18,textAlign:"center",boxShadow:"0 4px 14px rgba(0,0,0,.08)",marginBottom:14}}>
-            <div style={{fontWeight:700,fontSize:13,marginBottom:4,color:method==="wave"?C.wave:C.orange}}>
-              {method==="wave"?"Scannez avec Wave":"Scannez avec Orange Money"}
+            <div style={{fontWeight:700,fontSize:15,marginBottom:4,color:method==="wave"?C.wave:C.orange}}>
+              {method==="wave"?"💙 Payer par Wave":"🟠 Payer par Orange Money"}
             </div>
-            <div style={{fontSize:12,color:C.muted,marginBottom:14}}>Montant exact : <strong>{plan.price} F</strong></div>
-            {(method==="wave"?config.WAVE_QR_URL:config.ORANGE_QR_URL)?(
-              <img src={method==="wave"?config.WAVE_QR_URL:config.ORANGE_QR_URL} alt="QR" style={{width:200,height:200,borderRadius:12,border:`3px solid ${method==="wave"?C.wave:C.orange}`}}/>
-            ):(
-              <div style={{width:200,height:200,background:"#F3F4F6",borderRadius:12,border:`3px dashed ${method==="wave"?C.wave:C.orange}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 auto"}}>
-                <div style={{fontSize:36,marginBottom:8}}>{method==="wave"?"🔵":"🟠"}</div>
-                <div style={{fontSize:11,color:C.muted,textAlign:"center",padding:"0 10px"}}>Ajoutez votre QR dans Paramètres ⚙️</div>
+            <div style={{fontSize:13,color:C.muted,marginBottom:16}}>Montant : <strong style={{fontSize:18,color:method==="wave"?C.wave:C.orange}}>{plan.price} F</strong></div>
+            
+            <div style={{background:"#F9FAFB",borderRadius:10,padding:"12px 16px",marginBottom:12}}>
+              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>Envoyez directement au :</div>
+              <div style={{fontSize:22,fontWeight:800,color:method==="wave"?C.wave:C.orange,letterSpacing:2}}>
+                {method==="wave"?config.WAVE_NUMBER:config.ORANGE_NUMBER}
+              </div>
+              <div style={{fontSize:12,color:C.muted,marginTop:4}}>Montant : <strong>{plan.price} F</strong> · Objet : VenteVoix {plan.name}</div>
+            </div>
+
+            <div style={{background:method==="wave"?"#EFF6FF":"#FFF7ED",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:C.muted,textAlign:"left"}}>
+              <div style={{fontWeight:700,marginBottom:4}}>📱 Comment payer :</div>
+              <div>1. Ouvrez votre app {method==="wave"?"Wave":"Orange Money"}</div>
+              <div>2. Appuyez sur "Envoyer de l'argent"</div>
+              <div>3. Entrez le numéro ci-dessus</div>
+              <div>4. Montant : <strong>{plan.price} F</strong></div>
+              <div>5. Confirmez et envoyez la preuve ↓</div>
+            </div>
+
+            {(method==="wave"?config.WAVE_QR_URL:config.ORANGE_QR_URL)&&(
+              <div style={{marginTop:8}}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:6}}>📺 Sur PC ? Scannez ce QR :</div>
+                <img src={method==="wave"?config.WAVE_QR_URL:config.ORANGE_QR_URL} alt="QR" style={{width:140,height:140,borderRadius:8,border:`2px solid ${method==="wave"?C.wave:C.orange}`}}/>
               </div>
             )}
-            <div style={{marginTop:12,fontSize:12,color:C.muted}}>Après paiement, envoyez la preuve par WhatsApp</div>
           </div>
-        )}
+        )}}
         <a href={`https://wa.me/${config.WHATSAPP_NUMBER}?text=${msg}`} target="_blank" rel="noopener noreferrer"
           style={{display:"block",width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#25D366",color:"#FFF",fontWeight:800,fontSize:14,cursor:"pointer",textAlign:"center",textDecoration:"none",marginBottom:10,boxSizing:"border-box"}}>
           📲 J'ai payé — Envoyer la preuve sur WhatsApp
@@ -792,7 +807,7 @@ function AdminPanel({onClose}){
     else alert("PIN incorrect");
   };
   const generate=async()=>{
-    const c=await createCode(plan,note,trialDays);
+    const c=await createCodeSupabase(plan,note,trialDays);
     setNewCode(c); setNote(""); setCodes(getCodes());
   };
   const copyMsg=code=>{
@@ -1087,31 +1102,29 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
         const {data:stkData}=await supabase.from("stock").select("*").eq("user_id",user.id);
         if(stkData&&stkData.length>0){
           const stk=stkData.map(a=>({id:a.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prixAchat:a.prix_achat,prixVente:a.prix_vente,seuil:a.seuil}));
-          setStock(stk);lsSet(KEY_STK,stk);  // skipSupabase handled by direct lsSet  // skipSupabase handled by direct lsSet
+          setStock(stk);lsSet(KEY_STK,stk);
         }
       }catch(e){console.log("Supabase load error:",e);}
     };
     loadFromSupabase();
   },[user.id]);
 
-  const saveTx=useCallback(async (l,skipSupabase=false)=>{
+  const saveTx=useCallback(async l=>{
     lsSet(KEY_TX,l);
-    if(skipSupabase) return;
     try{
       if(l.length>0){
         const t=l[0];
-        await supabase.from("transactions").upsert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock},{onConflict:"id"});
+        await supabase.from("transactions").insert({id:String(t.id),user_id:user.id,date:t.date,type:t.type,description:t.description,quantite:t.quantite,prix_unitaire:t.prixUnitaire,montant:t.montant,texte_original:t.texteOriginal,article_stock:t.articleStock});
       }
-    }catch(e){console.log("saveTx error:",e);}
+    }catch{}
   },[KEY_TX,user.id]);
-  const saveStk=useCallback(async (l,skipSupabase=false)=>{
+  const saveStk=useCallback(async l=>{
     lsSet(KEY_STK,l);
-    if(skipSupabase) return;
     try{
       for(const a of l){
         await supabase.from("stock").upsert({id:String(a.id),user_id:user.id,code:a.code,nom:a.nom,categorie:a.categorie,quantite:a.quantite,prix_achat:a.prixAchat,prix_vente:a.prixVente,seuil:a.seuil},{onConflict:"id"});
       }
-    }catch(e){console.log("saveStk error:",e);}
+    }catch{}
   },[KEY_STK,user.id]);
   const parler=useCallback(t=>{
     synth.current?.cancel();
@@ -1357,14 +1370,18 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
                   style={{width:"100%",border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
                 {searchAccueil&&<button onClick={()=>setSearchAccueil("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",cursor:"pointer",color:C.muted,fontSize:14}}>✕</button>}
               </div>
-              <button onClick={()=>{
+              <MicButton
+                onStart={()=>{
                   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
                   if(!SR) return;
-                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;rec.maxAlternatives=1;
-                  rec.onresult=e=>{setSearchAccueil(e.results[0][0].transcript);};
-                  rec.onerror=()=>{};
+                  const rec=new SR();rec.lang="fr-FR";rec.interimResults=false;
+                  window._searchRec=rec;
+                  rec.onresult=e=>setSearchAccueil(e.results[0][0].transcript);
                   rec.start();
-                }} style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}>🎤</button>
+                }}
+                onStop={()=>window._searchRec?.stop()}
+                label="🎤"
+                style={{background:C.primary,border:"none",borderRadius:10,padding:"0 14px",color:"#FFF",fontSize:16,cursor:"pointer",whiteSpace:"nowrap"}}/>
             </div>
             {searchAccueil&&(()=>{
               const results=stock.filter(a=>a.nom.toLowerCase().includes(searchAccueil.toLowerCase())||(a.code||"").toLowerCase().includes(searchAccueil.toLowerCase()));
