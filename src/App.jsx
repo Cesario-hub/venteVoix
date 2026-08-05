@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
+import ModuleEcole from "./ModuleEcole.jsx";
 import * as XLSX from "xlsx";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1300,6 +1301,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const stats={tv,td,nv:transactions.filter(t=>t.type==="vente").length,nd:transactions.filter(t=>t.type==="depense").length};
   const articlesBas=stock.filter(a=>(a.quantite??0)<=(a.seuil??5));
   const canStock=["pro","business"].includes(plan?.id);
+  const canEcole=["ecole"].includes(plan?.id);
   const categories=["tous",...new Set(stock.map(a=>a.categorie||"Général").filter(Boolean))];
   const stockFiltre=(!searchStock&&triCategorie==="tous")?stock:stock.filter(a=>(triCategorie==="tous"||(a.categorie||"General")===triCategorie)&&(!searchStock||a.nom.toLowerCase().includes(searchStock.toLowerCase())||(a.code||"").toLowerCase().includes(searchStock.toLowerCase())));
   const trialEnd=user?.trialEnd?new Date(user.trialEnd):null;
@@ -1393,7 +1395,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
 
       {/* Onglets */}
       <div style={{display:"flex",background:C.surface,borderBottom:`1px solid ${C.border}`}}>
-        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"]].filter(Boolean).map(([k,icon])=>(
+        {[["accueil","🏠"],["historique","📋"],canStock&&["stock","📦"],["recouvrement","💰"],canEcole&&["ecole","🏫"]].filter(Boolean).map(([k,icon])=>(
           <button key={k} onClick={()=>setOnglet(k)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",background:onglet===k?C.bg:C.surface,fontWeight:onglet===k?700:400,color:onglet===k?C.primary:C.muted,borderBottom:onglet===k?`3px solid ${C.primary}`:"3px solid transparent",fontSize:12}}>
             {icon} {k.charAt(0).toUpperCase()+k.slice(1)}
           </button>
