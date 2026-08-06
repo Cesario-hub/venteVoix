@@ -590,7 +590,7 @@ function LandingPage({onSignup,onLogin}){
           </div>
         </div>
       </div>
-      <div style={{padding:"28px 20px 20px",maxWidth:480,margin:"0 auto"}}>
+      <div style={{padding:"28px 20px 20px",maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
         {[["🎤","Parlez","Dites 'Vendu 3 savons à 500 francs' — enregistré en 5 secondes"],
           ["📊","Suivez","Ventes, dépenses, bénéfice en temps réel"],
           ["🎙️","Écoutez","Bilan audio généré par Claude, lu à voix haute"],
@@ -602,7 +602,7 @@ function LandingPage({onSignup,onLogin}){
           </div>
         ))}
       </div>
-      <div style={{padding:"8px 20px 48px",maxWidth:480,margin:"0 auto"}}>
+      <div style={{padding:"8px 20px 48px",maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
         <h2 style={{textAlign:"center",margin:"0 0 18px",fontSize:20,fontWeight:800,color:C.primary}}>Choisissez votre formule</h2>
         {PLANS.map(plan=>(
           <div key={plan.id} onMouseEnter={()=>setHov(plan.id)} onMouseLeave={()=>setHov(null)}
@@ -841,7 +841,7 @@ function AdminPanel({onClose}){
   );
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
       <div style={{background:C.primary,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:17,fontWeight:800,color:"#FFF"}}>🔐 Admin VenteVoix</div><div style={{fontSize:11,color:C.primaryLight}}>Gestion codes d'activation</div></div>
         <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",fontSize:12,cursor:"pointer"}}>Fermer</button>
@@ -1372,7 +1372,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const suppArt=id=>{ const ns=stock.filter(a=>a.id!==id); setStock(ns); saveStk(ns); };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
       {showRapport&&<EcranRapport transactions={transactions} stock={stock} onClose={()=>setShowRapport(false)}/>}
       {showParams&&<EcranParametres onClose={()=>setShowParams(false)}/>}
 
