@@ -77,7 +77,9 @@ async function createCode(planId,note="",trialDays=0){
 async function useActivationCode(code,userInfo){
   if(code==="TEST01") return {ok:true,planId:"pro"};
   try{
-    const {data,error}=await supabase.from("codes").select("*").eq("code",code).single();
+    const codePromise=supabase.from("codes").select("*").eq("code",code).single();
+    const codeTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),5000));
+    const {data,error}=await Promise.race([codePromise,codeTimeout]).catch(()=>({data:null,error:true}));
     if(!error&&data){
       if(data.used) return {ok:false,error:"Code déjà utilisé."};
       await supabase.from("codes").update({used:true,used_at:new Date().toISOString(),used_by:userInfo}).eq("code",code);
@@ -736,7 +738,9 @@ function AuthPage({mode,onAuth,onBack,onNeedPayment}){
       onAuth(user);    }else{
       if(!form.tel||!form.pin){setErr("Entrez votre numéro et PIN.");setLoading(false);return;}
       try{
-        const {data:sbUser}=await supabase.from("users").select("*").eq("tel",form.tel).single();
+        const sbPromise=supabase.from("users").select("*").eq("tel",form.tel).single();
+        const sbTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),5000));
+        const {data:sbUser}=await Promise.race([sbPromise,sbTimeout]).catch(()=>({data:null}));
         if(sbUser){
           if(sbUser.pin!==form.pin){setErr("PIN incorrect.");setLoading(false);return;}
           const user={id:sbUser.id,nom:sbUser.nom,tel:sbUser.tel,email:sbUser.email||"",plan:sbUser.plan,subscribed:true,createdAt:sbUser.created_at,trialEnd:sbUser.trial_end,isTrial:sbUser.is_trial};
