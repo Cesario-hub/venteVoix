@@ -591,6 +591,84 @@ function Rapports({eleves,paiements,personnel,fournitures}){
   );
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// DÉPENSES ÉCOLE
+// ══════════════════════════════════════════════════════════════════════
+function Depenses({depenses,setDepenses}){
+  const[showForm,setShowForm]=useState(false);
+  const initF={description:"",categorie:"Electricite",montant:"",date:today(),note:""};
+  const[form,setForm]=useState(initF);
+  const setF=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const[filtreMois,setFiltreMois]=useState("");
+
+  const save=()=>{
+    if(!form.description.trim()||!form.montant) return;
+    setDepenses(prev=>[{id:Date.now(),...form,montant:parseFloat(form.montant)||0,createdAt:new Date().toISOString()},...prev]);
+    setForm(initF);setShowForm(false);
+  };
+
+  const del=id=>{if(confirm("Supprimer ?"))setDepenses(prev=>prev.filter(d=>d.id!==id));};
+
+  const mois=[...new Set(depenses.map(d=>d.date?.slice(0,7)))].sort().reverse();
+  const depFiltres=filtreMois?depenses.filter(d=>d.date?.startsWith(filtreMois)):depenses;
+  const totalPeriode=depFiltres.reduce((s,d)=>s+d.montant,0);
+
+  const catIcon={Electricite:"💡",Eau:"💧",Loyer:"🏠",Salaires:"👨‍🏫",Entretien:"🔧",Transport:"🚗",Materiel:"📚",Administration:"📋",Autre:"📦"};
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <StatCard label="Total dépenses" value={fmt(depenses.reduce((s,d)=>s+d.montant,0))} color={CE.danger}/>
+        <StatCard label="Ce mois" value={fmt(depenses.filter(d=>d.date?.startsWith(new Date().toISOString().slice(0,7))).reduce((s,d)=>s+d.montant,0))} color={CE.warning}/>
+      </div>
+
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+        <Btn onClick={()=>setShowForm(!showForm)} bg={CE.danger} color="#FFF">+ Ajouter dépense</Btn>
+      </div>
+
+      {showForm&&(
+        <Card style={{marginBottom:14,background:"#FEF2F2",border:`1px solid ${CE.danger}30`}}>
+          <div style={{fontWeight:700,fontSize:14,color:CE.danger,marginBottom:12}}>➕ Nouvelle dépense</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
+            <Inp label="Description *" k="description" val={form.description} onChange={setF} ph="ex: Facture électricité"/>
+            <Sel label="Catégorie" k="categorie" val={form.categorie} onChange={setF} options={[["Electricite","💡 Électricité"],["Eau","💧 Eau"],["Loyer","🏠 Loyer"],["Salaires","👨‍🏫 Salaires"],["Entretien","🔧 Entretien"],["Transport","🚗 Transport"],["Materiel","📚 Matériel pédagogique"],["Administration","📋 Administration"],["Autre","📦 Autre"]]}/>
+            <Inp label="Montant (F) *" k="montant" type="number" val={form.montant} onChange={setF} ph="ex: 50000"/>
+            <Inp label="Date" k="date" type="date" val={form.date} onChange={setF}/>
+            <Inp label="Note" k="note" val={form.note} onChange={setF} ph="Détails optionnels"/>
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <Btn onClick={()=>setShowForm(false)} bg="#F3F4F6" color={CE.muted}>Annuler</Btn>
+            <Btn onClick={save} bg={CE.danger} color="#FFF">✓ Ajouter</Btn>
+          </div>
+        </Card>
+      )}
+
+      {/* Filtre par mois */}
+      <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center"}}>
+        <select value={filtreMois} onChange={e=>setFiltreMois(e.target.value)}
+          style={{flex:1,border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}>
+          <option value="">📅 Toutes les dépenses</option>
+          {mois.map(m=><option key={m} value={m}>{new Date(m+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</option>)}
+        </select>
+        <div style={{background:CE.danger+"15",color:CE.danger,fontWeight:700,fontSize:13,padding:"8px 14px",borderRadius:8,whiteSpace:"nowrap"}}>{fmt(totalPeriode)}</div>
+      </div>
+
+      {depFiltres.length===0&&<div style={{textAlign:"center",color:CE.muted,padding:30}}>💸 Aucune dépense.</div>}
+      {depFiltres.map(d=>(
+        <div key={d.id} style={{background:CE.surface,borderRadius:10,padding:"10px 14px",marginBottom:6,boxShadow:"0 1px 4px rgba(0,0,0,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:`3px solid ${CE.danger}`}}>
+          <div>
+            <div style={{fontWeight:700,color:CE.danger,fontSize:14}}>-{fmt(d.montant)}</div>
+            <div style={{fontSize:13,color:CE.text}}>{catIcon[d.categorie]||"📦"} {d.description}</div>
+            <div style={{fontSize:11,color:CE.muted}}>{d.categorie} · {fmtDate(d.date)}{d.note?` · ${d.note}`:""}</div>
+          </div>
+          <Btn onClick={()=>del(d.id)} bg="#FEF2F2" color={CE.danger} sm>🗑</Btn>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // MODULE PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════
@@ -599,6 +677,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
   const KEY_P="vv_ecole_paiements_"+user.id;
   const KEY_S="vv_ecole_personnel_"+user.id;
   const KEY_F="vv_ecole_fournitures_"+user.id;
+  const KEY_D="vv_ecole_depenses_"+user.id;
 
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
 
@@ -607,11 +686,13 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
   const[paiements,setPaiementsR]=useState(()=>lsGet(KEY_P)||[]);
   const[personnel,setPersonnelR]=useState(()=>lsGet(KEY_S)||[]);
   const[fournitures,setFournituresR]=useState(()=>lsGet(KEY_F)||[]);
+  const[depenses,setDepensesR]=useState(()=>lsGet(KEY_D)||[]);
 
   const setEleves=useCallback(fn=>{setElevesR(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(KEY_E,n);return n;});},[KEY_E]);
   const setPaiements=useCallback(fn=>{setPaiementsR(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(KEY_P,n);return n;});},[KEY_P]);
   const setPersonnel=useCallback(fn=>{setPersonnelR(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(KEY_S,n);return n;});},[KEY_S]);
   const setFournitures=useCallback(fn=>{setFournituresR(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(KEY_F,n);return n;});},[KEY_F]);
+  const setDepenses=useCallback(fn=>{setDepensesR(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(KEY_D,n);return n;});},[KEY_D]);
 
   const onglets=[
     ["dashboard","🏠","Tableau de bord"],
@@ -619,6 +700,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
     ["paiements","💰","Paiements"],
     ["personnel","👨‍🏫","Personnel"],
     ["fournitures","📦","Fournitures"],
+    ["depenses","💸","Dépenses"],
     ["rapports","📊","Rapports"],
   ];
 
@@ -651,6 +733,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
           {onglet==="paiements"&&"💰 Paiements & Recouvrement"}
           {onglet==="personnel"&&"👨‍🏫 Personnel & Salaires"}
           {onglet==="fournitures"&&"📦 Fournitures & Stock"}
+          {onglet==="depenses"&&"💸 Dépenses de l'école"}
           {onglet==="rapports"&&"📊 Rapports & Statistiques"}
         </div>
       </div>
@@ -662,6 +745,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
         {onglet==="paiements"&&<Paiements eleves={eleves} paiements={paiements} setPaiements={setPaiements}/>}
         {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
         {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
+        {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
         {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures}/>}
       </div>
 
