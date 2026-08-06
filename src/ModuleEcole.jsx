@@ -326,68 +326,86 @@ function Paiements({eleves,paiements,setPaiements}){
   const[form,setForm]=useState({montant:"",mode:"cash",note:"",date:today()});
   const[filtreE,setFiltreE]=useState("");
   const setF=(k,v)=>setForm(p=>({...p,[k]:v}));
-  const modeIcon={cash:"💵 Cash",wave:"📱 Wave",orange:"🟠 Orange",cheque:"🏦 Chèque"};
 
   const ajouter=()=>{
     if(!eleveId||!form.montant) return;
-    setPaiements(p=>[{id:Date.now(),eleveId:Number(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...p]);
-    setForm({montant:"",mode:"cash",note:"",date:today()});setEleveId("");
+    setPaiements(prev=>[{id:Date.now(),eleveId:Number(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...prev]);
+    setForm({montant:"",mode:"cash",note:"",date:today()});
+    setEleveId("");
   };
 
-  const del=id=>{if(confirm("Supprimer ?"))setPaiements(p=>p.filter(x=>x.id!==id));};
+  const del=id=>{if(confirm("Supprimer ?"))setPaiements(prev=>prev.filter(p=>p.id!==id));};
+  const modeIcon={cash:"💵 Cash",wave:"📱 Wave",orange:"🟠 Orange",cheque:"🏦 Chèque"};
   const pFiltres=filtreE?paiements.filter(p=>p.eleveId===Number(filtreE)):paiements;
-  const total=pFiltres.reduce((s,p)=>s+p.montant,0);
+  const totalPeriode=pFiltres.reduce((s,p)=>s+p.montant,0);
 
   return(
-    <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:20,alignItems:"start"}}>
-      {/* Formulaire */}
-      <Card style={{border:`1.5px solid ${CE.primaryLight}`}}>
-        <div style={{fontWeight:700,fontSize:15,color:CE.primary,marginBottom:16}}>💰 Enregistrer un paiement</div>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <Field label="Élève" k="eleveId" val={eleveId} onChange={(_,v)=>setEleveId(v)} options={[["","-- Sélectionner --"],...eleves.map(e=>{const p=paiements.filter(x=>x.eleveId===e.id).reduce((s,x)=>s+x.montant,0);return[String(e.id),`${e.nom} ${e.prenom||""} · ${e.classe} (reste: ${fmtN(e.fraisTotal-p)} F)`];})]}/>
-          <Field label="Montant (F)" k="montant" type="number" val={form.montant} onChange={setF} req ph="ex: 50000"/>
-          <Field label="Date" k="date" type="date" val={form.date} onChange={setF}/>
-          <Field label="Note" k="note" val={form.note} onChange={setF} ph="ex: 1ère tranche, solde..."/>
-          <div>
-            <div style={{fontSize:11,color:CE.muted,marginBottom:6,fontWeight:600}}>Mode de paiement</div>
+    <div style={{display:"grid",gridTemplateColumns:"minmax(300px,420px) 1fr",gap:20,alignItems:"start"}}>
+      {/* Colonne gauche — Formulaire */}
+      <div>
+        <Card style={{marginBottom:0,border:`1px solid ${CE.primaryLight}`}}>
+          <div style={{fontWeight:700,fontSize:15,color:CE.primary,marginBottom:14}}>💰 Enregistrer un paiement</div>
+          
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Élève *</div>
+            <select value={eleveId} onChange={e=>setEleveId(e.target.value)}
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",background:"#FFF"}}>
+              <option value="">-- Choisir un élève --</option>
+              {eleves.map(e=>{
+                const pays=paiements.filter(p=>p.eleveId===e.id).reduce((s,p)=>s+p.montant,0);
+                const r=e.fraisTotal-pays;
+                return <option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe} (reste: {fmtN(r)} F)</option>;
+              })}
+            </select>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <Inp label="Montant (F) *" k="montant" type="number" val={form.montant} onChange={setF} ph="50000"/>
+            <Inp label="Date" k="date" type="date" val={form.date} onChange={setF}/>
+          </div>
+
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,color:CE.muted,marginBottom:5,fontWeight:600}}>Mode de paiement</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {[["cash","💵"],["wave","📱"],["orange","🟠"],["cheque","🏦"]].map(([v,i])=>(
+              {[["cash","💵"],["wave","📱 Wave"],["orange","🟠 Orange"],["cheque","🏦"]].map(([v,l])=>(
                 <button key={v} onClick={()=>setF("mode",v)}
-                  style={{padding:"8px 14px",borderRadius:10,border:`1.5px solid ${form.mode===v?CE.primary:CE.border}`,background:form.mode===v?CE.primary:"transparent",color:form.mode===v?"#FFF":CE.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>
-                  {i} {v.charAt(0).toUpperCase()+v.slice(1)}
-                </button>
+                  style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${form.mode===v?CE.primary:CE.border}`,background:form.mode===v?CE.primary:"transparent",color:form.mode===v?"#FFF":CE.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>{l}</button>
               ))}
             </div>
           </div>
-          <Btn onClick={ajouter} bg={CE.primary} color="#FFF" full disabled={!eleveId||!form.montant}>✓ Enregistrer le paiement</Btn>
-        </div>
-      </Card>
 
-      {/* Historique */}
+          <div style={{marginBottom:14}}>
+            <Inp label="Note (optionnel)" k="note" val={form.note} onChange={setF} ph="ex: 1ère tranche"/>
+          </div>
+
+          <Btn onClick={ajouter} bg={CE.primary} color="#FFF" full>✓ Enregistrer le paiement</Btn>
+        </Card>
+      </div>
+
+      {/* Colonne droite — Historique */}
       <div>
         <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
           <select value={filtreE} onChange={e=>setFiltreE(e.target.value)}
-            style={{flex:1,border:`1.5px solid ${CE.border}`,borderRadius:10,padding:"10px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}>
-            <option value="">📋 Tous les paiements</option>
-            {eleves.map(e=><option key={e.id} value={e.id}>{e.nom} {e.prenom||""} · {e.classe}</option>)}
+            style={{flex:1,border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}>
+            <option value="">📋 Tous les paiements ({paiements.length})</option>
+            {eleves.map(e=><option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe}</option>)}
           </select>
-          <div style={{background:CE.success+"15",color:CE.success,fontWeight:700,padding:"10px 14px",borderRadius:10,fontSize:13,whiteSpace:"nowrap"}}>{fmt(total)}</div>
+          <div style={{background:CE.success+"15",color:CE.success,fontWeight:700,fontSize:14,padding:"9px 16px",borderRadius:8,whiteSpace:"nowrap"}}>{fmt(totalPeriode)}</div>
         </div>
-        <div style={{maxHeight:600,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
-          {pFiltres.length===0&&<EmptyState icon="💰" msg="Aucun paiement enregistré."/>}
+
+        {pFiltres.length===0&&<div style={{textAlign:"center",color:CE.muted,padding:40,background:CE.surface,borderRadius:14}}>Aucun paiement enregistré.</div>}
+        <div style={{maxHeight:"calc(100vh - 220px)",overflowY:"auto"}}>
           {pFiltres.map(p=>{
             const e=eleves.find(x=>x.id===p.eleveId);
             return(
-              <Card key={p.id} style={{padding:"12px 16px",borderLeft:`3px solid ${CE.success}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontWeight:700,color:CE.success,fontSize:15}}>+{fmt(p.montant)}</div>
-                    <div style={{fontSize:12,color:CE.text,marginTop:2}}>{e?`${e.nom} ${e.prenom||""} — ${e.classe}`:"Élève supprimé"}</div>
-                    <div style={{fontSize:11,color:CE.muted}}>{modeIcon[p.mode]||"💵"} · {fmtDate(p.date)}{p.note?` · ${p.note}`:""}</div>
-                  </div>
-                  <Btn onClick={()=>del(p.id)} bg="#FEF2F2" color={CE.danger} sm>🗑</Btn>
+              <div key={p.id} style={{background:CE.surface,borderRadius:10,padding:"12px 16px",marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:`3px solid ${CE.success}`}}>
+                <div>
+                  <div style={{fontWeight:700,color:CE.success,fontSize:16}}>+{fmt(p.montant)}</div>
+                  <div style={{fontSize:13,color:CE.text,fontWeight:600}}>{e?`${e.nom} ${e.prenom||""} — ${e.classe}`:"Élève supprimé"}</div>
+                  <div style={{fontSize:11,color:CE.muted}}>{modeIcon[p.mode]||"💵"} · {fmtDate(p.date)}{p.note?` · ${p.note}`:""}</div>
                 </div>
-              </Card>
+                <Btn onClick={()=>del(p.id)} bg="#FEF2F2" color={CE.danger} sm>🗑</Btn>
+              </div>
             );
           })}
         </div>
@@ -396,7 +414,7 @@ function Paiements({eleves,paiements,setPaiements}){
   );
 }
 
-// ── PERSONNEL ─────────────────────────────────────────────────────────────────
+
 function Personnel({personnel,setPersonnel}){
   const[showForm,setShowForm]=useState(false);
   const[editId,setEditId]=useState(null);
