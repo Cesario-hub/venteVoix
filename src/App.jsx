@@ -318,7 +318,7 @@ function LecteurAudio(){
   if(!texte) return null;
   return(
     <div style={{minHeight:"100vh",background:C.primary,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
-      <div style={{background:C.surface,borderRadius:24,padding:28,maxWidth:"min(500px,100%)",width:"100%",textAlign:"center",boxShadow:"0 16px 48px rgba(0,0,0,.3)"}}>
+      <div style={{background:C.surface,borderRadius:24,padding:28,maxWidth:380,width:"100%",textAlign:"center",boxShadow:"0 16px 48px rgba(0,0,0,.3)"}}>
         <div style={{fontSize:48,marginBottom:12}}>{lecture?"🔊":termine?"✅":"🎙️"}</div>
         <div style={{fontSize:18,fontWeight:800,color:C.primary,marginBottom:6}}>{lecture?"Lecture en cours…":termine?"Terminée":"Rapport VenteVoix"}</div>
         <div style={{fontSize:13,color:C.muted,marginBottom:20}}>{lecture?"Écoutez votre bilan":termine?"Vous pouvez réécouter":"Démarrage automatique…"}</div>
@@ -393,7 +393,7 @@ function EcranRapport({transactions,stock,onClose}){
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:"min(960px,100%)",maxHeight:"92vh",overflowY:"auto"}}>
+      <div style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto"}}>
         <div style={{background:C.primary,borderRadius:"20px 20px 0 0",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
           <div><div style={{fontSize:17,fontWeight:800,color:"#FFF"}}>📊 Rapport & Bilan</div><div style={{fontSize:11,color:C.primaryLight}}>Audio · WhatsApp · PDF · Excel</div></div>
           <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",cursor:"pointer",fontSize:13}}>✕</button>
@@ -498,7 +498,7 @@ function EcranParametres({onClose}){
   );
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:"min(960px,100%)",maxHeight:"92vh",overflowY:"auto"}}>
+      <div style={{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto"}}>
         <div style={{background:C.primary,borderRadius:"20px 20px 0 0",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
           <div><div style={{fontSize:17,fontWeight:800,color:"#FFF"}}>⚙️ Paramètres</div><div style={{fontSize:11,color:C.primaryLight}}>Configuration de l'application</div></div>
           <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",cursor:"pointer",fontSize:13}}>✕</button>
@@ -590,7 +590,7 @@ function LandingPage({onSignup,onLogin}){
           </div>
         </div>
       </div>
-      <div style={{padding:"28px 20px 20px",maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+      <div style={{padding:"28px 20px 20px",maxWidth:480,margin:"0 auto"}}>
         {[["🎤","Parlez","Dites 'Vendu 3 savons à 500 francs' — enregistré en 5 secondes"],
           ["📊","Suivez","Ventes, dépenses, bénéfice en temps réel"],
           ["🎙️","Écoutez","Bilan audio généré par Claude, lu à voix haute"],
@@ -602,7 +602,7 @@ function LandingPage({onSignup,onLogin}){
           </div>
         ))}
       </div>
-      <div style={{padding:"8px 20px 48px",maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+      <div style={{padding:"8px 20px 48px",maxWidth:480,margin:"0 auto"}}>
         <h2 style={{textAlign:"center",margin:"0 0 18px",fontSize:20,fontWeight:800,color:C.primary}}>Choisissez votre formule</h2>
         {PLANS.map(plan=>(
           <div key={plan.id} onMouseEnter={()=>setHov(plan.id)} onMouseLeave={()=>setHov(null)}
@@ -829,7 +829,7 @@ function AdminPanel({onClose}){
 
   if(!auth) return(
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:C.surface,borderRadius:20,padding:28,maxWidth:"min(500px,100%)",width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.12)"}}>
+      <div style={{background:C.surface,borderRadius:20,padding:28,maxWidth:320,width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.12)"}}>
         <div style={{fontSize:40,marginBottom:12}}>🔐</div>
         <div style={{fontWeight:800,fontSize:18,marginBottom:20,color:C.primary}}>Panneau Admin</div>
         <input type="password" placeholder="Code PIN admin" value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
@@ -841,7 +841,7 @@ function AdminPanel({onClose}){
   );
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
       <div style={{background:C.primary,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:17,fontWeight:800,color:"#FFF"}}>🔐 Admin VenteVoix</div><div style={{fontSize:11,color:C.primaryLight}}>Gestion codes d'activation</div></div>
         <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",fontSize:12,cursor:"pointer"}}>Fermer</button>
@@ -1372,7 +1372,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const suppArt=id=>{ const ns=stock.filter(a=>a.id!==id); setStock(ns); saveStk(ns); };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:900,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
       {showRapport&&<EcranRapport transactions={transactions} stock={stock} onClose={()=>setShowRapport(false)}/>}
       {showParams&&<EcranParametres onClose={()=>setShowParams(false)}/>}
 
