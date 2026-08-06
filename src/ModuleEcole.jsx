@@ -360,8 +360,16 @@ function Paiements({eleves,paiements,setPaiements}){
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-            <Inp label="Montant (F) *" k="montant" type="number" val={form.montant} onChange={setF} ph="50000"/>
-            <Inp label="Date" k="date" type="date" val={form.date} onChange={setF}/>
+            <div>
+              <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Montant (F) *</div>
+              <input type="number" placeholder="50000" value={form.montant} onChange={e=>setF("montant",e.target.value)}
+                style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Date</div>
+              <input type="date" value={form.date} onChange={e=>setF("date",e.target.value)}
+                style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+            </div>
           </div>
 
           <div style={{marginBottom:10}}>
@@ -375,7 +383,9 @@ function Paiements({eleves,paiements,setPaiements}){
           </div>
 
           <div style={{marginBottom:14}}>
-            <Inp label="Note (optionnel)" k="note" val={form.note} onChange={setF} ph="ex: 1ère tranche"/>
+            <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Note (optionnel)</div>
+            <input placeholder="ex: 1ère tranche" value={form.note} onChange={e=>setF("note",e.target.value)}
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
           </div>
 
           <Btn onClick={ajouter} bg={CE.primary} color="#FFF" full>✓ Enregistrer le paiement</Btn>
