@@ -25,7 +25,7 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
 // ── UI Components ─────────────────────────────────────────────────────────────
 function Btn({onClick,bg,color,children,full,sm,disabled}){
   return(
-    <button onClick={onClick} disabled={disabled}
+    <button onClick={onClick} disabled={disabled} onMouseDown={e=>e.preventDefault()}
       style={{padding:sm?"6px 12px":"10px 18px",borderRadius:10,border:"none",
         background:disabled?"#E5E7EB":bg,color:disabled?CE.muted:color,
         fontWeight:700,fontSize:sm?11:13,cursor:disabled?"not-allowed":"pointer",
@@ -69,7 +69,7 @@ function Field({label,k,type="text",ph,val,onChange,req,options,half}){
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
