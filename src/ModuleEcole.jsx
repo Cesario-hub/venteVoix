@@ -1,4 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "./supabase.js";
+
+async function sbFetch(promise,fallback=null){try{const t=new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),5000));return await Promise.race([promise,t]);}catch{return fallback||{data:null};}}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // VENTEVOIX ÉCOLE — Interface professionnelle PC & Mobile
@@ -708,13 +711,41 @@ function Rapports({eleves,paiements,personnel,fournitures,depenses}){
 // ══════════════════════════════════════════════════════════════════════════════
 export default function ModuleEcole({user,config,parler:parlerProp}){
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
-
   const keys={e:"vv_ecole_eleves_"+user.id,p:"vv_ecole_paiements_"+user.id,s:"vv_ecole_personnel_"+user.id,f:"vv_ecole_fournitures_"+user.id,d:"vv_ecole_depenses_"+user.id};
+  const[loading,setLoading]=useState(true);
   const[eleves,setElevesR]=useState(()=>lsGet(keys.e)||[]);
   const[paiements,setPaiementsR]=useState(()=>lsGet(keys.p)||[]);
   const[personnel,setPersonnelR]=useState(()=>lsGet(keys.s)||[]);
   const[fournitures,setFournituresR]=useState(()=>lsGet(keys.f)||[]);
   const[depenses,setDepensesR]=useState(()=>lsGet(keys.d)||[]);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const[eR,pR,sR,fR,dR]=await Promise.all([
+          sbFetch(supabase.from("ecole_eleves").select("*").eq("user_id",user.id)),
+          sbFetch(supabase.from("ecole_paiements").select("*").eq("user_id",user.id)),
+          sbFetch(supabase.from("ecole_personnel").select("*").eq("user_id",user.id)),
+          sbFetch(supabase.from("ecole_fournitures").select("*").eq("user_id",user.id)),
+          sbFetch(supabase.from("ecole_depenses").select("*").eq("user_id",user.id)),
+        ]);
+        if(eR?.data?.length){const d=eR.data.map(e=>({id:e.id,nom:e.nom,prenom:e.prenom||"",classe:e.classe||"",dateNaissance:e.date_naissance||"",nomParent:e.nom_parent||"",telParent:e.tel_parent||"",telParent2:e.tel_parent2||"",adresse:e.adresse||"",fraisTotal:parseFloat(e.frais_total)||0,echeance:e.echeance||"",statut:e.statut||"inscrit",createdAt:e.created_at}));setElevesR(d);lsSet(keys.e,d);}
+        if(pR?.data?.length){const d=pR.data.map(p=>({id:p.id,eleveId:p.eleve_id,montant:parseFloat(p.montant)||0,mode:p.mode||"cash",note:p.note||"",date:p.date||"",createdAt:p.created_at}));setPaiementsR(d);lsSet(keys.p,d);}
+        if(sR?.data?.length){const d=sR.data.map(p=>({id:p.id,nom:p.nom,prenom:p.prenom||"",poste:p.poste||"",tel:p.tel||"",email:p.email||"",salaire:parseFloat(p.salaire)||0,dateEmbauche:p.date_embauche||"",statut:p.statut||"actif"}));setPersonnelR(d);lsSet(keys.s,d);}
+        if(fR?.data?.length){const d=fR.data.map(f=>({id:f.id,nom:f.nom,categorie:f.categorie||"",quantite:parseFloat(f.quantite)||0,prixUnitaire:parseFloat(f.prix_unitaire)||0,seuil:parseFloat(f.seuil)||5}));setFournituresR(d);lsSet(keys.f,d);}
+        if(dR?.data?.length){const d=dR.data.map(x=>({id:x.id,description:x.description,categorie:x.categorie||"",montant:parseFloat(x.montant)||0,date:x.date||"",note:x.note||""}));setDepensesR(d);lsSet(keys.d,d);}
+      }catch(e){console.log("Ecole load error:",e);}
+      setLoading(false);
+    })();
+  },[user.id]);
+
+  const mkSave=(key,setter,toSb)=>fn=>{setter(prev=>{const n=typeof fn==="function"?fn(prev):fn;lsSet(key,n);toSb(n);return n;});};
+
+  const setEleves=mkSave(keys.e,setElevesR,n=>n.forEach(e=>sbFetch(supabase.from("ecole_eleves").upsert({id:String(e.id),user_id:user.id,nom:e.nom,prenom:e.prenom||"",classe:e.classe||"",date_naissance:e.dateNaissance||null,nom_parent:e.nomParent||"",tel_parent:e.telParent||"",tel_parent2:e.telParent2||"",adresse:e.adresse||"",frais_total:e.fraisTotal||0,echeance:e.echeance||null,statut:e.statut||"inscrit"},{onConflict:"id"}))));
+  const setPaiements=mkSave(keys.p,setPaiementsR,n=>{if(n[0])sbFetch(supabase.from("ecole_paiements").upsert({id:String(n[0].id),user_id:user.id,eleve_id:String(n[0].eleveId),montant:n[0].montant,mode:n[0].mode,note:n[0].note||"",date:n[0].date||null},{onConflict:"id"}));});
+  const setPersonnel=mkSave(keys.s,setPersonnelR,n=>n.forEach(p=>sbFetch(supabase.from("ecole_personnel").upsert({id:String(p.id),user_id:user.id,nom:p.nom,prenom:p.prenom||"",poste:p.poste||"",tel:p.tel||"",email:p.email||"",salaire:p.salaire||0,date_embauche:p.dateEmbauche||null,statut:p.statut||"actif"},{onConflict:"id"}))));
+  const setFournitures=mkSave(keys.f,setFournituresR,n=>n.forEach(f=>sbFetch(supabase.from("ecole_fournitures").upsert({id:String(f.id),user_id:user.id,nom:f.nom,categorie:f.categorie||"",quantite:f.quantite||0,prix_unitaire:f.prixUnitaire||0,seuil:f.seuil||5},{onConflict:"id"}))));
+  const setDepenses=mkSave(keys.d,setDepensesR,n=>{if(n[0])sbFetch(supabase.from("ecole_depenses").upsert({id:String(n[0].id),user_id:user.id,description:n[0].description,categorie:n[0].categorie||"",montant:n[0].montant,date:n[0].date||null,note:n[0].note||""},{onConflict:"id"}));});
   const[onglet,setOnglet]=useState("dashboard");
   const[sidebarOpen,setSidebarOpen]=useState(false);
 
@@ -724,6 +755,8 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
   const setPersonnel=mk(setPersonnelR,keys.s);
   const setFournitures=mk(setFournituresR,keys.f);
   const setDepenses=mk(setDepensesR,keys.d);
+
+  if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:CE.bg,flexDirection:"column",gap:16}}><div style={{width:44,height:44,border:`4px solid ${CE.primaryLight}`,borderTopColor:CE.primary,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style><div style={{color:CE.primary,fontWeight:600,fontSize:14}}>Chargement des données école...</div></div>);
 
   const nav=[
     {k:"dashboard",icon:"🏠",label:"Tableau de bord"},
