@@ -353,12 +353,12 @@ function Paiements({eleves,paiements,setPaiements}){
           <div style={{marginBottom:10}}>
             <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Élève *</div>
             <select value={eleveId} onChange={e=>setEleveId(e.target.value)}
-              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",background:"#FFF"}}>
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",background:"#FFF",color:"#111827"}}>
               <option value="">-- Choisir un élève --</option>
               {eleves.map(e=>{
                 const pays=paiements.filter(p=>p.eleveId===e.id).reduce((s,p)=>s+p.montant,0);
                 const r=e.fraisTotal-pays;
-                return <option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe} (reste: {fmtN(r)} F)</option>;
+                return <option key={e.id} value={String(e.id)}>{e.nom} {e.prenom||""} — {e.classe} (reste: {fmtN(r)} F)</option>;
               })}
             </select>
           </div>
@@ -402,7 +402,7 @@ function Paiements({eleves,paiements,setPaiements}){
           <select value={filtreE} onChange={e=>setFiltreE(e.target.value)}
             style={{flex:1,border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}>
             <option value="">📋 Tous les paiements ({paiements.length})</option>
-            {eleves.map(e=><option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe}</option>)}
+            {eleves.map(e=><option key={e.id} value={String(e.id)}>{e.nom} {e.prenom||""} — {e.classe}</option>)}
           </select>
           <div style={{background:CE.success+"15",color:CE.success,fontWeight:700,fontSize:14,padding:"9px 16px",borderRadius:8,whiteSpace:"nowrap"}}>{fmt(totalPeriode)}</div>
         </div>
