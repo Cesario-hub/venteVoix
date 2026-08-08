@@ -69,7 +69,7 @@ function Field({label,k,type="text",ph,val,onChange,req,options,half}){
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
@@ -751,11 +751,6 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
   const[sidebarOpen,setSidebarOpen]=useState(false);
 
   const mk=(set,key)=>useCallback(fn=>{set(p=>{const n=typeof fn==="function"?fn(p):fn;lsSet(key,n);return n;});},[key]);
-  const setEleves=mk(setElevesR,keys.e);
-  const setPaiements=mk(setPaiementsR,keys.p);
-  const setPersonnel=mk(setPersonnelR,keys.s);
-  const setFournitures=mk(setFournituresR,keys.f);
-  const setDepenses=mk(setDepensesR,keys.d);
 
   if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:CE.bg,flexDirection:"column",gap:16}}><div style={{width:44,height:44,border:`4px solid ${CE.primaryLight}`,borderTopColor:CE.primary,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style><div style={{color:CE.primary,fontWeight:600,fontSize:14}}>Chargement des données école...</div></div>);
 
