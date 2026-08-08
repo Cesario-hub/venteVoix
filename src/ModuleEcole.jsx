@@ -1,6 +1,64 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "./supabase.js";
 
+// ── Export Excel ──────────────────────────────────────────────────────────
+function exportExcel(eleves,paiements,personnel,fournitures,depenses){
+  try{
+    const XLSX=window.XLSX;
+    if(!XLSX){alert("Bibliothèque Excel non disponible");return;}
+    const wb=XLSX.utils.book_new();
+
+    // Feuille Élèves
+    const elevesData=eleves.map(e=>{
+      const pays=paiements.filter(p=>String(p.eleveId)===String(e.id)).reduce((s,p)=>s+p.montant,0);
+      return{"Nom":e.nom,"Prénom":e.prenom||"","Classe":e.classe||"","Parent":e.nomParent||"","Téléphone":e.telParent||"","Frais total":e.fraisTotal||0,"Montant payé":pays,"Reste":(e.fraisTotal||0)-pays,"Statut":pays>=(e.fraisTotal||0)?"Payé":"Impayé","Échéance":e.echeance||""};
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(elevesData),"Élèves");
+
+    // Feuille Paiements
+    const paiData=paiements.map(p=>{
+      const e=eleves.find(x=>String(x.id)===String(p.eleveId));
+      return{"Date":p.date||"","Élève":e?`${e.nom} ${e.prenom||""}`:"—","Classe":e?.classe||"","Montant":p.montant,"Mode":p.mode,"Note":p.note||""};
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(paiData),"Paiements");
+
+    // Feuille Personnel
+    const persData=personnel.map(p=>({"Nom":p.nom,"Prénom":p.prenom||"","Poste":p.poste||"","Téléphone":p.tel||"","Salaire":p.salaire||0,"Statut":p.statut||""}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(persData),"Personnel");
+
+    // Feuille Fournitures
+    const fourData=fournitures.map(f=>({"Article":f.nom,"Catégorie":f.categorie||"","Quantité":f.quantite||0,"Prix unitaire":f.prixUnitaire||0,"Valeur total":(f.quantite||0)*(f.prixUnitaire||0),"Seuil alerte":f.seuil||5}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fourData),"Fournitures");
+
+    // Feuille Dépenses
+    const depData=depenses.map(d=>({"Date":d.date||"","Description":d.description,"Catégorie":d.categorie||"","Montant":d.montant,"Note":d.note||""}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(depData),"Dépenses");
+
+    XLSX.writeFile(wb,`VenteVoix_Ecole_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }catch(e){console.error(e);alert("Erreur export Excel: "+e.message);}
+}
+
+function importExcel(file,setEleves,setPaiements){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const XLSX=window.XLSX;
+      const wb=XLSX.read(e.target.result,{type:"array"});
+      
+      // Import élèves
+      if(wb.SheetNames.includes("Élèves")){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets["Élèves"]);
+        const newEleves=rows.map((r,i)=>({id:Date.now()+i,nom:r["Nom"]||"",prenom:r["Prénom"]||"",classe:r["Classe"]||"",nomParent:r["Parent"]||"",telParent:r["Téléphone"]||"",fraisTotal:parseFloat(r["Frais total"])||0,echeance:r["Échéance"]||"",statut:"inscrit",createdAt:new Date().toISOString()}));
+        if(confirm(`Importer ${newEleves.length} élèves ?`)){
+          setEleves(prev=>[...prev,...newEleves]);
+          alert(`${newEleves.length} élèves importés avec succès !`);
+        }
+      }
+    }catch(e){alert("Erreur import: "+e.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 async function sbFetch(promise,fallback=null){try{const t=new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),5000));return await Promise.race([promise,t]);}catch{return fallback||{data:null};}}
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -65,17 +123,17 @@ function KPI({icon,label,value,sub,color,trend}){
 function Field({label,k,type="text",ph,val,onChange,req,options,half}){
   const s={width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:10,
     padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",
-    background:CE.surface,transition:"border-color .2s",color:"#111827",cursor:type==="date"||options?"pointer":"text",
+    background:CE.surface,transition:"border-color .2s",cursor:type==="date"||options?"pointer":"text",
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
       ):(
-        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} onFocus={e=>e.target.style.borderColor=CE.primary} onBlur={e=>e.target.style.borderColor=CE.border} style={s}/>
+        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} onClick={e=>e.stopPropagation()} onFocus={e=>e.target.style.borderColor=CE.primary} onBlur={e=>e.target.style.borderColor=CE.border} style={s}/>
       )}
     </div>
   );
@@ -123,6 +181,8 @@ function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parle
   const masseS=personnel.filter(p=>p.statut==="actif").reduce((s,p)=>s+(p.salaire||0),0);
   const pct=totalFrais>0?Math.round((totalEnc/totalFrais)*100):0;
 
+  useEffect(()=>{if(!window.XLSX){const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";document.head.appendChild(s);}},[]);
+
   const rapport=()=>{
     const t=`Bonjour. Bilan de l'école. ${eleves.length} élèves inscrits. Frais attendus : ${fmtN(totalFrais)} francs. Encaissé : ${fmtN(totalEnc)} francs. Reste à recouvrer : ${fmtN(totalFrais-totalEnc)} francs.${nRetard>0?` Attention : ${nRetard} élèves en retard de paiement.`:""} Dépenses du mois : ${fmtN(totalDep)} francs. Masse salariale : ${fmtN(masseS)} francs par mois.`;
     parler(t);
@@ -163,6 +223,13 @@ function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parle
 
       {/* Bouton rapport */}
       <Btn onClick={rapport} bg={CE.primary} color="#FFF" full>🎙️ Rapport audio & Envoyer sur WhatsApp</Btn>
+      <div style={{display:"flex",gap:8,marginTop:8}}>
+        <Btn onClick={()=>exportExcel(eleves,paiements,personnel,fournitures,depenses)} bg={CE.success} color="#FFF" full>📊 Exporter Excel</Btn>
+        <label style={{flex:1,padding:"10px 18px",borderRadius:10,border:`1px solid ${CE.border}`,background:"transparent",color:CE.primary,fontWeight:700,fontSize:13,cursor:"pointer",textAlign:"center",display:"block"}}>
+          📂 Importer
+          <input type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={e=>{if(e.target.files[0])importExcel(e.target.files[0],setEleves,setPaiements);}}/>
+        </label>
+      </div>
 
       {/* Alertes */}
       {nRetard>0&&(
@@ -333,14 +400,14 @@ function Paiements({eleves,paiements,setPaiements}){
 
   const ajouter=()=>{
     if(!eleveId||!form.montant) return;
-    setPaiements(prev=>[{id:Date.now(),eleveId:String(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...prev]);
+    setPaiements(prev=>[{id:Date.now(),eleveId:Number(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...prev]);
     setForm({montant:"",mode:"cash",note:"",date:today()});
     setEleveId("");
   };
 
   const del=id=>{if(confirm("Supprimer ?"))setPaiements(prev=>prev.filter(p=>p.id!==id));};
   const modeIcon={cash:"💵 Cash",wave:"📱 Wave",orange:"🟠 Orange",cheque:"🏦 Chèque"};
-  const pFiltres=filtreE?paiements.filter(p=>String(p.eleveId)===String(filtreE)):paiements;
+  const pFiltres=filtreE?paiements.filter(p=>p.eleveId===Number(filtreE)):paiements;
   const totalPeriode=pFiltres.reduce((s,p)=>s+p.montant,0);
 
   return(
@@ -353,12 +420,12 @@ function Paiements({eleves,paiements,setPaiements}){
           <div style={{marginBottom:10}}>
             <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600}}>Élève *</div>
             <select value={eleveId} onChange={e=>setEleveId(e.target.value)}
-              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",background:"#FFF",color:"#111827"}}>
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none",background:"#FFF"}}>
               <option value="">-- Choisir un élève --</option>
               {eleves.map(e=>{
                 const pays=paiements.filter(p=>p.eleveId===e.id).reduce((s,p)=>s+p.montant,0);
                 const r=e.fraisTotal-pays;
-                return <option key={e.id} value={String(e.id)}>{e.nom} {e.prenom||""} — {e.classe} (reste: {fmtN(r)} F)</option>;
+                return <option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe} (reste: {fmtN(r)} F)</option>;
               })}
             </select>
           </div>
@@ -402,7 +469,7 @@ function Paiements({eleves,paiements,setPaiements}){
           <select value={filtreE} onChange={e=>setFiltreE(e.target.value)}
             style={{flex:1,border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,boxSizing:"border-box",outline:"none"}}>
             <option value="">📋 Tous les paiements ({paiements.length})</option>
-            {eleves.map(e=><option key={e.id} value={String(e.id)}>{e.nom} {e.prenom||""} — {e.classe}</option>)}
+            {eleves.map(e=><option key={e.id} value={e.id}>{e.nom} {e.prenom||""} — {e.classe}</option>)}
           </select>
           <div style={{background:CE.success+"15",color:CE.success,fontWeight:700,fontSize:14,padding:"9px 16px",borderRadius:8,whiteSpace:"nowrap"}}>{fmt(totalPeriode)}</div>
         </div>
@@ -410,7 +477,7 @@ function Paiements({eleves,paiements,setPaiements}){
         {pFiltres.length===0&&<div style={{textAlign:"center",color:CE.muted,padding:40,background:CE.surface,borderRadius:14}}>Aucun paiement enregistré.</div>}
         <div style={{maxHeight:"calc(100vh - 220px)",overflowY:"auto"}}>
           {pFiltres.map(p=>{
-            const e=eleves.find(x=>String(x.id)===String(p.eleveId));
+            const e=eleves.find(x=>x.id===p.eleveId);
             return(
               <div key={p.id} style={{background:CE.surface,borderRadius:10,padding:"12px 16px",marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:`3px solid ${CE.success}`}}>
                 <div>
