@@ -65,16 +65,17 @@ function KPI({icon,label,value,sub,color,trend}){
 function Field({label,k,type="text",ph,val,onChange,req,options,half}){
   const s={width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:10,
     padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",
-    background:CE.surface,transition:"border-color .2s"};
+    background:CE.surface,transition:"border-color .2s",cursor:type==="date"||options?"pointer":"text",
+    WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <div style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</div>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
       ):(
-        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}/>
+        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} onClick={e=>e.stopPropagation()} onFocus={e=>e.target.style.borderColor=CE.primary} onBlur={e=>e.target.style.borderColor=CE.border} style={s}/>
       )}
     </div>
   );
