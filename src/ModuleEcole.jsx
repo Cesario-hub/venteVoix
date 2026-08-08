@@ -333,14 +333,14 @@ function Paiements({eleves,paiements,setPaiements}){
 
   const ajouter=()=>{
     if(!eleveId||!form.montant) return;
-    setPaiements(prev=>[{id:Date.now(),eleveId:Number(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...prev]);
+    setPaiements(prev=>[{id:Date.now(),eleveId:String(eleveId),montant:parseFloat(form.montant)||0,mode:form.mode,note:form.note,date:form.date,createdAt:new Date().toISOString()},...prev]);
     setForm({montant:"",mode:"cash",note:"",date:today()});
     setEleveId("");
   };
 
   const del=id=>{if(confirm("Supprimer ?"))setPaiements(prev=>prev.filter(p=>p.id!==id));};
   const modeIcon={cash:"💵 Cash",wave:"📱 Wave",orange:"🟠 Orange",cheque:"🏦 Chèque"};
-  const pFiltres=filtreE?paiements.filter(p=>p.eleveId===Number(filtreE)):paiements;
+  const pFiltres=filtreE?paiements.filter(p=>String(p.eleveId)===String(filtreE)):paiements;
   const totalPeriode=pFiltres.reduce((s,p)=>s+p.montant,0);
 
   return(
@@ -410,7 +410,7 @@ function Paiements({eleves,paiements,setPaiements}){
         {pFiltres.length===0&&<div style={{textAlign:"center",color:CE.muted,padding:40,background:CE.surface,borderRadius:14}}>Aucun paiement enregistré.</div>}
         <div style={{maxHeight:"calc(100vh - 220px)",overflowY:"auto"}}>
           {pFiltres.map(p=>{
-            const e=eleves.find(x=>x.id===p.eleveId);
+            const e=eleves.find(x=>String(x.id)===String(p.eleveId));
             return(
               <div key={p.id} style={{background:CE.surface,borderRadius:10,padding:"12px 16px",marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:`3px solid ${CE.success}`}}>
                 <div>
