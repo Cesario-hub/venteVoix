@@ -65,7 +65,7 @@ function KPI({icon,label,value,sub,color,trend}){
 function Field({label,k,type="text",ph,val,onChange,req,options,half}){
   const s={width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:10,
     padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",
-    background:CE.surface,transition:"border-color .2s",cursor:type==="date"||options?"pointer":"text",
+    background:CE.surface,transition:"border-color .2s",color:"#111827",cursor:type==="date"||options?"pointer":"text",
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
