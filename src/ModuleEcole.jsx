@@ -75,7 +75,7 @@ function Field({label,k,type="text",ph,val,onChange,req,options,half}){
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
       ):(
-        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} onClick={e=>e.stopPropagation()} onFocus={e=>e.target.style.borderColor=CE.primary} onBlur={e=>e.target.style.borderColor=CE.border} style={s}/>
+        <input type={type} placeholder={ph} value={val||""} onChange={e=>onChange(k,e.target.value)} onFocus={e=>e.target.style.borderColor=CE.primary} onBlur={e=>e.target.style.borderColor=CE.border} style={s}/>
       )}
     </div>
   );
