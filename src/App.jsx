@@ -841,7 +841,7 @@ function AdminPanel({onClose}){
   );
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:"min(1100px,100%)",margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
       <div style={{background:C.primary,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:17,fontWeight:800,color:"#FFF"}}>🔐 Admin VenteVoix</div><div style={{fontSize:11,color:C.primaryLight}}>Gestion codes d'activation</div></div>
         <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"#FFF",fontSize:12,cursor:"pointer"}}>Fermer</button>
@@ -1375,7 +1375,7 @@ function AppVenteVoix({user,onLogout,onAdmin,plan}){
   const suppArt=id=>{ const ns=stock.filter(a=>a.id!==id); setStock(ns); saveStk(ns); };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:480,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Segoe UI',system-ui,sans-serif",color:C.text,maxWidth:"min(1100px,100%)",margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
       {showRapport&&<EcranRapport transactions={transactions} stock={stock} onClose={()=>setShowRapport(false)}/>}
       {showParams&&<EcranParametres onClose={()=>setShowParams(false)}/>}
 

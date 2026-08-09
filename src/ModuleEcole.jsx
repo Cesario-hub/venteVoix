@@ -170,7 +170,7 @@ function EmptyState({icon,msg}){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parler}){
+function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parler,setEleves,setPaiements}){
   const totalFrais=eleves.reduce((s,e)=>s+(e.fraisTotal||0),0);
   const totalEnc=eleves.reduce((s,e)=>s+paiements.filter(p=>p.eleveId===e.id).reduce((s,p)=>s+p.montant,0),0);
   const totalDep=depenses.reduce((s,d)=>s+d.montant,0);
@@ -873,7 +873,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
 
         {/* Zone de contenu scrollable */}
         <div style={{flex:1,overflowY:"auto",padding:"24px"}}>
-          {onglet==="dashboard"&&<Dashboard eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses} config={config} parler={parler}/>}
+          {onglet==="dashboard"&&<Dashboard eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses} config={config} parler={parler} setEleves={setEleves} setPaiements={setPaiements}/>}
           {onglet==="eleves"&&<Eleves eleves={eleves} setEleves={setEleves} paiements={paiements} setPaiements={setPaiements} config={config}/>}
           {onglet==="paiements"&&<Paiements eleves={eleves} paiements={paiements} setPaiements={setPaiements}/>}
           {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
