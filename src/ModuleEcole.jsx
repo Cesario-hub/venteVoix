@@ -845,11 +845,12 @@ function ParametresEcole({config,setConfig}){
   );
 }
 
-export default function ModuleEcole({user,config,parler:parlerProp}){
+export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}){
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
   const keys={e:"vv_ecole_eleves_"+user.id,p:"vv_ecole_paiements_"+user.id,s:"vv_ecole_personnel_"+user.id,f:"vv_ecole_fournitures_"+user.id,d:"vv_ecole_depenses_"+user.id};
   const[loading,setLoading]=useState(true);
-  const[config,setConfigR]=useState(()=>lsGet("vv_ecole_config")||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
+  const[eConfig,setConfigR]=useState(()=>lsGet("vv_ecole_config")||schoolConfig||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
+  const config=eConfig;
   const setConfig=v=>{setConfigR(v);lsSet("vv_ecole_config",v);};
   const[eleves,setElevesR]=useState(()=>lsGet(keys.e)||[]);
   const[paiements,setPaiementsR]=useState(()=>lsGet(keys.p)||[]);
