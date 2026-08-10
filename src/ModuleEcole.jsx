@@ -127,7 +127,7 @@ function Field({label,k,type="text",ph,val,onChange,req,options,half}){
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
@@ -170,7 +170,7 @@ function EmptyState({icon,msg}){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parler,setEleves,setPaiements}){
+function Dashboard({eleves,paiements,personnel,fournitures,depenses,config,parler}){
   const totalFrais=eleves.reduce((s,e)=>s+(e.fraisTotal||0),0);
   const totalEnc=eleves.reduce((s,e)=>s+paiements.filter(p=>p.eleveId===e.id).reduce((s,p)=>s+p.montant,0),0);
   const totalDep=depenses.reduce((s,d)=>s+d.montant,0);
@@ -777,10 +777,80 @@ function Rapports({eleves,paiements,personnel,fournitures,depenses}){
 // ══════════════════════════════════════════════════════════════════════════════
 // MODULE PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════════════
+
+function ParametresEcole({config,setConfig}){
+  const[form,setForm]=useState({nomEcole:config.nomEcole||"",slogan:config.slogan||"",tel:config.tel||"",email:config.email||"",adresse:config.adresse||"",logo:config.logo||""});
+  const[saved,setSaved]=useState(false);
+  const setF=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const save=()=>{setConfig({...config,...form});setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  const handleLogo=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>setF("logo",ev.target.result);reader.readAsDataURL(file);};
+  return(
+    <div>
+      <Card style={{marginBottom:16,background:`linear-gradient(135deg,${CE.primary},${CE.primaryMid})`,color:"#FFF"}}>
+        <div style={{fontSize:10,opacity:.7,marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Aperçu en-tête</div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          {form.logo?<img src={form.logo} alt="Logo" style={{width:60,height:60,borderRadius:10,objectFit:"cover",border:"2px solid rgba(255,255,255,.3)"}}/>:<div style={{width:60,height:60,borderRadius:10,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>🏫</div>}
+          <div>
+            <div style={{fontWeight:900,fontSize:20,lineHeight:1.1}}>{form.nomEcole||"Nom de votre école"}</div>
+            {form.slogan&&<div style={{fontSize:11,opacity:.8,fontStyle:"italic"}}>{form.slogan}</div>}
+            {form.adresse&&<div style={{fontSize:10,opacity:.6}}>📍 {form.adresse}</div>}
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <div style={{fontWeight:700,fontSize:15,color:CE.primary,marginBottom:14}}>⚙️ Personnalisation</div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:11,color:CE.muted,marginBottom:6,fontWeight:600}}>Logo</div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {form.logo?<img src={form.logo} alt="" style={{width:72,height:72,borderRadius:8,objectFit:"cover"}}/>:<div style={{width:72,height:72,borderRadius:8,background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,border:`2px dashed ${CE.border}`}}>🏫</div>}
+            <label style={{padding:"8px 16px",borderRadius:8,background:CE.primary,color:"#FFF",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+              📷 Choisir logo
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={handleLogo}/>
+            </label>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
+          <div>
+            <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:700,display:"block",textTransform:"uppercase"}}>Nom de l'école *</label>
+            <input value={form.nomEcole} onChange={e=>setF("nomEcole",e.target.value)} placeholder="ex: École Primaire Sainte Marie"
+              style={{width:"100%",border:`2px solid ${CE.primary}`,borderRadius:8,padding:"10px 14px",fontSize:15,fontWeight:700,boxSizing:"border-box",outline:"none",color:"#111827"}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,display:"block"}}>Slogan / Devise</label>
+            <input value={form.slogan} onChange={e=>setF("slogan",e.target.value)} placeholder="ex: L'excellence au service de l'avenir"
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",color:"#111827"}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,display:"block"}}>Téléphone</label>
+            <input type="tel" value={form.tel} onChange={e=>setF("tel",e.target.value)} placeholder="+225 07 XX XX XX"
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",color:"#111827"}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,display:"block"}}>Email</label>
+            <input type="email" value={form.email} onChange={e=>setF("email",e.target.value)} placeholder="ecole@example.com"
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",color:"#111827"}}/>
+          </div>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,display:"block"}}>Adresse</label>
+            <input value={form.adresse} onChange={e=>setF("adresse",e.target.value)} placeholder="ex: Quartier Cocody, Abidjan"
+              style={{width:"100%",border:`1.5px solid ${CE.border}`,borderRadius:8,padding:"10px 14px",fontSize:13,boxSizing:"border-box",outline:"none",color:"#111827"}}/>
+          </div>
+        </div>
+        <div style={{marginTop:14,display:"flex",gap:8,alignItems:"center"}}>
+          <Btn onClick={save} bg={CE.primary} color="#FFF">💾 Sauvegarder</Btn>
+          {saved&&<span style={{color:CE.success,fontWeight:600,fontSize:13}}>✅ Sauvegardé !</span>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function ModuleEcole({user,config,parler:parlerProp}){
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
   const keys={e:"vv_ecole_eleves_"+user.id,p:"vv_ecole_paiements_"+user.id,s:"vv_ecole_personnel_"+user.id,f:"vv_ecole_fournitures_"+user.id,d:"vv_ecole_depenses_"+user.id};
   const[loading,setLoading]=useState(true);
+  const[config,setConfigR]=useState(()=>lsGet("vv_ecole_config")||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
+  const setConfig=v=>{setConfigR(v);lsSet("vv_ecole_config",v);};
   const[eleves,setElevesR]=useState(()=>lsGet(keys.e)||[]);
   const[paiements,setPaiementsR]=useState(()=>lsGet(keys.p)||[]);
   const[personnel,setPersonnelR]=useState(()=>lsGet(keys.s)||[]);
@@ -829,6 +899,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
     {k:"fournitures",icon:"📦",label:"Fournitures"},
     {k:"depenses",icon:"💸",label:"Dépenses"},
     {k:"rapports",icon:"📊",label:"Rapports"},
+    {k:"parametres",icon:"⚙️",label:"Paramètres"},
   ];
 
   const cur=nav.find(n=>n.k===onglet);
@@ -856,7 +927,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
           ))}
         </div>
         <div style={{padding:"12px 16px",fontSize:10,opacity:.4,borderTop:"1px solid rgba(255,255,255,.1)"}}>
-          VenteVoix École v1.0
+          {config?.nomEcole||"VenteVoix École"}
         </div>
       </div>
 
@@ -873,13 +944,14 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
 
         {/* Zone de contenu scrollable */}
         <div style={{flex:1,overflowY:"auto",padding:"24px"}}>
-          {onglet==="dashboard"&&<Dashboard eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses} config={config} parler={parler} setEleves={setEleves} setPaiements={setPaiements}/>}
+          {onglet==="dashboard"&&<Dashboard eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses} config={config} parler={parler}/>}
           {onglet==="eleves"&&<Eleves eleves={eleves} setEleves={setEleves} paiements={paiements} setPaiements={setPaiements} config={config}/>}
           {onglet==="paiements"&&<Paiements eleves={eleves} paiements={paiements} setPaiements={setPaiements}/>}
           {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
           {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
           {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
-          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>}
+          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>
+          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}}
         </div>
       </div>
 
