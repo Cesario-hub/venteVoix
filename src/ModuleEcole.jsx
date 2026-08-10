@@ -968,3 +968,4 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
     </div>
   );
 }
+// v2
