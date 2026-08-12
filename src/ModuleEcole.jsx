@@ -127,7 +127,7 @@ function Field({label,k,type="text",ph,val,onChange,req,options,half}){
     WebkitAppearance:"none"};
   return(
     <div style={{gridColumn:half?"span 1":undefined}}>
-      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>
+      <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:600,letterSpacing:.3,display:"block"}}>{label}{req&&<span style={{color:CE.danger}}> *</span>}</label>>
       {options?(
         <select value={val||""} onChange={e=>onChange(k,e.target.value)} style={s}>
           {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
@@ -845,11 +845,12 @@ function ParametresEcole({config,setConfig}){
   );
 }
 
-export default function ModuleEcole({user,config,parler:parlerProp}){
+export default function ModuleEcole({user,config:cfgProp,parler:parlerProp}){
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
   const keys={e:"vv_ecole_eleves_"+user.id,p:"vv_ecole_paiements_"+user.id,s:"vv_ecole_personnel_"+user.id,f:"vv_ecole_fournitures_"+user.id,d:"vv_ecole_depenses_"+user.id};
   const[loading,setLoading]=useState(true);
-  const[config,setConfigR]=useState(()=>lsGet("vv_ecole_config")||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
+  const[eConfig,setConfigR]=useState(()=>lsGet("vv_ecole_config")||cfgProp||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
+  const config=eConfig;
   const setConfig=v=>{setConfigR(v);lsSet("vv_ecole_config",v);};
   const[eleves,setElevesR]=useState(()=>lsGet(keys.e)||[]);
   const[paiements,setPaiementsR]=useState(()=>lsGet(keys.p)||[]);
@@ -960,8 +961,8 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
           {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
           {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
           {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
-          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>}
-          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}
+          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>
+          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}}
         </div>
       </div>
 
@@ -978,5 +979,3 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
     </div>
   );
 }
-
-
