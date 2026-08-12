@@ -809,7 +809,7 @@ function ParametresEcole({config,setConfig}){
             </label>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(240px,100%),1fr))",gap:12}}>
           <div>
             <label style={{fontSize:11,color:CE.muted,marginBottom:4,fontWeight:700,display:"block",textTransform:"uppercase"}}>Nom de l'école *</label>
             <input value={form.nomEcole} onChange={e=>setF("nomEcole",e.target.value)} placeholder="ex: École Primaire Sainte Marie"
@@ -845,12 +845,11 @@ function ParametresEcole({config,setConfig}){
   );
 }
 
-export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}){
+export default function ModuleEcole({user,config,parler:parlerProp}){
   const parler=parlerProp||((t)=>{const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";window.speechSynthesis.speak(u);});
   const keys={e:"vv_ecole_eleves_"+user.id,p:"vv_ecole_paiements_"+user.id,s:"vv_ecole_personnel_"+user.id,f:"vv_ecole_fournitures_"+user.id,d:"vv_ecole_depenses_"+user.id};
   const[loading,setLoading]=useState(true);
-  const[eConfig,setConfigR]=useState(()=>lsGet("vv_ecole_config")||schoolConfig||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
-  const config=eConfig;
+  const[config,setConfigR]=useState(()=>lsGet("vv_ecole_config")||{nomEcole:"",slogan:"",tel:"",email:"",adresse:"",logo:""});
   const setConfig=v=>{setConfigR(v);lsSet("vv_ecole_config",v);};
   const[eleves,setElevesR]=useState(()=>lsGet(keys.e)||[]);
   const[paiements,setPaiementsR]=useState(()=>lsGet(keys.p)||[]);
@@ -890,7 +889,17 @@ export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}
 
   const mk=(set,key)=>useCallback(fn=>{set(p=>{const n=typeof fn==="function"?fn(p):fn;lsSet(key,n);return n;});},[key]);
 
-  if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:CE.bg,flexDirection:"column",gap:16}}><div style={{width:44,height:44,border:`4px solid ${CE.primaryLight}`,borderTopColor:CE.primary,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style><div style={{color:CE.primary,fontWeight:600,fontSize:14}}>Chargement des données école...</div></div>);
+  if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:CE.bg,flexDirection:"column",gap:16}}><div style={{width:44,height:44,border:`4px solid ${CE.primaryLight}`,borderTopColor:CE.primary,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(min-width:768px){
+          .ecole-sidebar{display:flex!important}
+          .ecole-mobile-nav{display:none!important}
+        }
+        @media(max-width:767px){
+          .ecole-sidebar{display:none!important}
+          .ecole-mobile-nav{display:flex!important}
+        }
+      `}</style><div style={{color:CE.primary,fontWeight:600,fontSize:14}}>Chargement des données école...</div></div>);
 
   const nav=[
     {k:"dashboard",icon:"🏠",label:"Tableau de bord"},
@@ -908,8 +917,8 @@ export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}
   return(
     <div style={{display:"flex",height:"100vh",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif",background:CE.bg}}>
 
-      {/* SIDEBAR PC */}
-      <div style={{width:220,background:CE.sidebar,color:"#FFF",display:"flex",flexDirection:"column",flexShrink:0,overflowY:"auto"}}>
+      {/* SIDEBAR PC - cachée sur mobile */}
+      <div style={{width:220,background:CE.sidebar,color:"#FFF",flexDirection:"column",flexShrink:0,overflowY:"auto",display:"none"}} className="ecole-sidebar">
         <div style={{padding:"20px 16px 16px"}}>
           <div style={{fontWeight:800,fontSize:17,marginBottom:2}}>🏫 VenteVoix</div>
           <div style={{fontSize:11,opacity:.6,fontWeight:600,letterSpacing:.5}}>GESTION SCOLAIRE</div>
@@ -933,7 +942,7 @@ export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}
       </div>
 
       {/* CONTENU PRINCIPAL */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,width:"100%"}}>
         {/* Header */}
         <div style={{background:CE.surface,borderBottom:`1px solid ${CE.border}`,padding:"14px 24px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
           <div style={{flex:1}}>
@@ -951,13 +960,13 @@ export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}
           {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
           {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
           {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
-          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>}
-          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}
+          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>
+          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}}
         </div>
       </div>
 
       {/* NAV MOBILE BAS */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:CE.surface,borderTop:`1px solid ${CE.border}`,display:"flex",zIndex:200,overflowX:"auto"}}>
+      <div className="ecole-mobile-nav" style={{position:"fixed",bottom:0,left:0,right:0,background:CE.surface,borderTop:`1px solid ${CE.border}`,display:"flex",zIndex:200,overflowX:"auto"}}>
         {nav.map(n=>(
           <button key={n.k} onClick={()=>setOnglet(n.k)}
             style={{flex:"0 0 auto",minWidth:60,padding:"8px 0 5px",border:"none",background:"transparent",cursor:"pointer",color:onglet===n.k?CE.primary:CE.muted,fontWeight:onglet===n.k?700:400}}>
@@ -969,4 +978,3 @@ export default function ModuleEcole({user,config:schoolConfig,parler:parlerProp}
     </div>
   );
 }
-// v2
