@@ -960,7 +960,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
           {onglet==="personnel"&&<Personnel personnel={personnel} setPersonnel={setPersonnel}/>}
           {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
           {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
-          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>
+          {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>}
           {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}
         </div>
       </div>
