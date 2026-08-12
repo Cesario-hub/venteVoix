@@ -961,7 +961,7 @@ export default function ModuleEcole({user,config,parler:parlerProp}){
           {onglet==="fournitures"&&<Fournitures fournitures={fournitures} setFournitures={setFournitures}/>}
           {onglet==="depenses"&&<Depenses depenses={depenses} setDepenses={setDepenses}/>}
           {onglet==="rapports"&&<Rapports eleves={eleves} paiements={paiements} personnel={personnel} fournitures={fournitures} depenses={depenses}/>
-          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}}
+          {onglet==="parametres"&&<ParametresEcole config={config} setConfig={setConfig}/>}
         </div>
       </div>
 
