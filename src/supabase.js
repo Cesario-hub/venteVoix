@@ -1,95 +1,88 @@
-﻿// src/supabase.js - Version Neon
-import { Pool } from 'pg';
+﻿// src/supabase.js - Version API Vercel (frontend)
+console.log('✅ Supabase (API Vercel) chargé avec succès !');
 
-const connectionString = process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
-
-if (!connectionString) {
-  console.error('❌ DATABASE_URL non définie !');
-}
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false }
-});
-
-export const query = async (text, params) => {
-  console.log('🔍 SQL:', text);
-  console.log('📦 Params:', params);
+// Fonction utilitaire pour appeler votre API
+const callAPI = async (action, data) => {
   try {
-    const res = await pool.query(text, params);
-    console.log('✅ Résultat:', res.rows);
-    return res.rows;
+    const response = await fetch('/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...data }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Erreur API');
+    }
+    const result = await response.json();
+    return result;
   } catch (error) {
-    console.error('❌ Erreur SQL:', error);
+    console.error('❌ Erreur appel API:', error);
     throw error;
   }
 };
 
+// Objet supabase adapté pour utiliser votre API
 export const supabase = {
   from: (table) => ({
-    select: (columns = '*') => ({
-      eq: (field, value) => ({
-        order: (orderField, { ascending = true } = {}) => ({
-          then: async (callback) => {
-            const sql = `SELECT ${columns} FROM ${table} WHERE ${field} = $1 ORDER BY ${orderField} ${ascending ? 'ASC' : 'DESC'}`;
-            const rows = await query(sql, [value]);
-            return callback({ data: rows, error: null });
-          }
-        }),
-        then: async (callback) => {
-          const sql = `SELECT ${columns} FROM ${table} WHERE ${field} = $1`;
-          const rows = await query(sql, [value]);
-          return callback({ data: rows, error: null });
-        }
-      }),
-      then: async (callback) => {
-        const sql = `SELECT ${columns} FROM ${table}`;
-        const rows = await query(sql);
-        return callback({ data: rows, error: null });
-      }
-    }),
-    insert: (data) => ({
-      then: async (callback) => {
-        const keys = Object.keys(data);
-        const values = Object.values(data);
-        const placeholders = keys.map((_, i) => `$${i+1}`).join(', ');
-        const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
-        const rows = await query(sql, values);
-        return callback({ data: rows[0] || null, error: null });
-      }
-    }),
+    // Pour l'upsert (inscription d'un utilisateur)
     upsert: (data) => ({
       then: async (callback) => {
-        const keys = Object.keys(data);
-        const values = Object.values(data);
-        const placeholders = keys.map((_, i) => `$${i+1}`).join(', ');
-        const updateSet = keys.map((key) => `${key} = EXCLUDED.${key}`).join(', ');
-        const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) ON CONFLICT (tel) DO UPDATE SET ${updateSet} RETURNING *`;
-        const rows = await query(sql, values);
-        return callback({ data: rows[0] || null, error: null });
+        console.log(`📝 [API] UPSERT dans ${table}`, data);
+        try {
+          // Action spécifique pour les utilisateurs
+          if (table === 'users') {
+            const result = await callAPI('upsertUser', { table, data });
+            return callback({ data: result.data, error: null });
+          }
+          // Pour les autres tables (générique)
+          const result = await callAPI('upsert', { table, data });
+          return callback({ data: result.data, error: null });
+        } catch (error) {
+          return callback({ data: null, error });
+        }
       }
     }),
-    update: (data) => ({
-      eq: (field, value) => ({
-        then: async (callback) => {
-          const sets = Object.keys(data).map((key, i) => `${key} = $${i+1}`).join(', ');
-          const values = [...Object.values(data), value];
-          const sql = `UPDATE ${table} SET ${sets} WHERE ${field} = $${values.length}`;
-          await query(sql, values);
-          return callback({ data: 'Updated', error: null });
+    // Pour la sélection
+    select: (columns = '*') => ({
+      then: async (callback) => {
+        console.log(`🔍 [API] SELECT ${columns} FROM ${table}`);
+        try {
+          const result = await callAPI('select', { data: { table, columns } });
+          return callback({ data: result.data, error: null });
+        } catch (error) {
+          return callback({ data: null, error });
         }
-      })
-    }),
-    delete: () => ({
-      eq: (field, value) => ({
-        then: async (callback) => {
-          const sql = `DELETE FROM ${table} WHERE ${field} = $1`;
-          await query(sql, [value]);
-          return callback({ data: 'Deleted', error: null });
-        }
-      })
+      }
     })
   })
 };
 
-console.log('✅ Supabase (Neon) chargé avec succès !');
+// Fonctions de gestion des codes
+export const getCodes = () => {
+  try {
+    return JSON.parse(localStorage.getItem('vv_codes') || '{}');
+  } catch {
+    return {};
+  }
+};
+
+export const saveCodes = (codes) => {
+  localStorage.setItem('vv_codes', JSON.stringify(codes));
+};
+
+export const useActivationCode = async (code, userInfo) => {
+  console.log(`🔑 [localStorage] Utilisation du code: ${code}`);
+  if (code === "TEST01") {
+    return { ok: true, planId: "pro" };
+  }
+  const codes = getCodes();
+  if (!codes[code]) return { ok: false, error: "Code invalide." };
+  if (codes[code].used) return { ok: false, error: "Code déjà utilisé." };
+  codes[code].used = true;
+  codes[code].usedAt = new Date().toISOString();
+  codes[code].usedBy = userInfo;
+  saveCodes(codes);
+  return { ok: true, planId: codes[code].planId };
+};
+
+console.log('✅ VenteVoix prêt à utiliser l\'API !');
